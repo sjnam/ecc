@@ -3,6 +3,8 @@ package ecurve
 import (
 	"bytes"
 	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/sha256"
 	"fmt"
 	"math/big"
 	"testing"
@@ -25,6 +27,7 @@ func init() {
 	gy, _ := new(big.Int).SetString("0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 0)
 	n, _ := new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 0)
 	h := big.NewInt(1)
+
 	secp256k1 = &EllipticCurve{
 		P:       p,
 		A:       a,
@@ -39,9 +42,8 @@ func init() {
 
 func TestAdd(t *testing.T) {
 	cases := []struct {
-		px, py       int64
-		qx, qy       int64
-		wantX, wantY *big.Int
+		px, py, qx, qy int64
+		wantX, wantY   *big.Int
 	}{
 		{
 			17, 10, 95, 31,
@@ -52,6 +54,7 @@ func TestAdd(t *testing.T) {
 			big.NewInt(95), big.NewInt(66),
 		},
 	}
+
 	for _, c := range cases {
 		rx, ry := curve.Add(big.NewInt(c.px), big.NewInt(c.py),
 			big.NewInt(c.qx), big.NewInt(c.qy))
@@ -79,6 +82,7 @@ func TestDouble(t *testing.T) {
 			big.NewInt(80), big.NewInt(87),
 		},
 	}
+
 	for _, c := range cases {
 		rx, ry := curve.Double(big.NewInt(c.px), big.NewInt(c.py))
 		if c.wantX.Cmp(rx) != 0 || c.wantY.Cmp(ry) != 0 {
@@ -118,6 +122,7 @@ func TestScalarMult(t *testing.T) {
 			big.NewInt(3), big.NewInt(6),
 		},
 	}
+
 	for _, c := range cases {
 		rx, ry := curve.ScalarMult(big.NewInt(c.px), big.NewInt(c.py),
 			big.NewInt(c.k).Bytes())
@@ -144,6 +149,7 @@ func TestSECP256k1(t *testing.T) {
 			"0x9e773199edc1ea792b150270ea3317689286c9fe239dd5b9c5cfd9e81b4b632",
 		},
 	}
+
 	for _, c := range cases {
 		priv, _ := new(big.Int).SetString(c.priv, 0)
 		pubX, pubY := secp256k1.ScalarBaseMult(priv.Bytes())
@@ -156,16 +162,71 @@ func TestSECP256k1(t *testing.T) {
 }
 
 func TestECDH(t *testing.T) {
-	alicePriv, _ := new(big.Int).SetString("0xe32868331fa8ef0138de0de85478346aec5e3912b6029ae71691c384237a3eeb", 0)
-	alicePubX, alicePubY := secp256k1.ScalarBaseMult(alicePriv.Bytes())
-	bobPriv, _ := new(big.Int).SetString("0xcef147652aa90162e1fff9cf07f2605ea05529ca215a04350a98ecc24aa34342", 0)
-	bobPubX, bobPubY := secp256k1.ScalarBaseMult(bobPriv.Bytes())
-	ssx1, ssy1 := secp256k1.ScalarMult(alicePubX, alicePubY, bobPriv.Bytes())
-	ssx2, ssy2 := secp256k1.ScalarMult(bobPubX, bobPubY, alicePriv.Bytes())
+	aliPriv, aliPubX, aliPubY, _ := elliptic.GenerateKey(secp256k1, rand.Reader)
+	bobPriv, bobPubX, bobPubY, _ := elliptic.GenerateKey(secp256k1, rand.Reader)
+
+	ssx1, ssy1 := secp256k1.ScalarMult(aliPubX, aliPubY, bobPriv)
+	ssx2, ssy2 := secp256k1.ScalarMult(bobPubX, bobPubY, aliPriv)
+
 	aliceSharedSecret := elliptic.Marshal(secp256k1, ssx1, ssy1)
 	bobSharedSecret := elliptic.Marshal(secp256k1, ssx2, ssy2)
-	if bytes.Compare(aliceSharedSecret, bobSharedSecret) != 0 {
+
+	if !bytes.Equal(aliceSharedSecret, bobSharedSecret) {
 		t.Errorf("sharedSecret1: 0x%x\nsharedSecret2: 0x%x",
 			aliceSharedSecret, bobSharedSecret)
+	}
+}
+
+func signMessage(d, z *big.Int) (r, s *big.Int) {
+	N := secp256k1.Params().N
+	for {
+		k, xp, _, _ := elliptic.GenerateKey(secp256k1, rand.Reader)
+
+		r = new(big.Int).Set(xp)
+		r.Mod(r, N)
+		if r.Sign() == 0 {
+			continue
+		}
+
+		s = new(big.Int).SetBytes(k)
+		s.ModInverse(s, N)
+		u := new(big.Int).Mul(r, d)
+		u.Add(u, z)
+		s.Mul(s, u)
+		s.Mod(s, N)
+		if s.Sign() != 0 {
+			return
+		}
+	}
+}
+
+func verifySignature(hx, hy, z, r, s *big.Int) bool {
+	N := secp256k1.Params().N
+	w := new(big.Int).ModInverse(s, N)
+	u1 := new(big.Int).Mul(w, z)
+	u1.Mod(u1, N)
+	u2 := new(big.Int).Mul(w, r)
+	u2.Mod(u2, N)
+
+	x1, y1 := secp256k1.ScalarBaseMult(u1.Bytes())
+	x2, y2 := secp256k1.ScalarMult(hx, hy, u2.Bytes())
+	x, _ := secp256k1.Add(x1, y1, x2, y2)
+	x.Mod(x, N)
+
+	return x.Cmp(r) == 0
+}
+
+func TestECDSA(t *testing.T) {
+	priv, hx, hy, err := elliptic.GenerateKey(secp256k1, rand.Reader)
+	if err != nil {
+		t.Error(err)
+	}
+	h := sha256.Sum256([]byte("Hello, world."))
+	z := new(big.Int).SetBytes(h[:32])
+
+	r, s := signMessage(new(big.Int).SetBytes(priv), z)
+
+	if !verifySignature(hx, hy, z, r, s) {
+		t.Error("invalid signature")
 	}
 }
