@@ -15,7 +15,6 @@ import (
 )
 
 // EllipticCurve represents a short-form Weierstrass curve. y² = x³ + ax + b
-//
 // Note that the point at infinity (0, 0) is not considered on the curve, and
 // although it can be returned by Add, Double, ScalarMult, or ScalarBaseMult, it
 // can't be marshaled or unmarshaled, and IsOnCurve will return false for it.
@@ -28,12 +27,12 @@ type EllipticCurve struct {
 	BitSize int      // the size of the underlying field
 }
 
+// Params returns the parameters for the curve.
 func (ec *EllipticCurve) Params() *elliptic.CurveParams {
 	N := new(big.Int).Mul(ec.N, ec.H)
-	N.Mod(N, ec.P)
 	return &elliptic.CurveParams{
 		P:       ec.P,
-		N:       N,
+		N:       N.Mod(N, ec.P),
 		B:       ec.B,
 		Gx:      ec.Gx,
 		Gy:      ec.Gy,
@@ -41,7 +40,7 @@ func (ec *EllipticCurve) Params() *elliptic.CurveParams {
 	}
 }
 
-// IsOnCurve returns true if the given (x,y) lies on the Curve.
+// IsOnCurve reports whether the given (x,y) lies on the curve.
 func (ec *EllipticCurve) IsOnCurve(x, y *big.Int) bool {
 	// y² = x³ + ax + b
 	y2 := new(big.Int).Mul(y, y)          //y²
@@ -245,6 +244,7 @@ func (ec *EllipticCurve) doubleJacobian(x, y, z *big.Int) (
 	return x3, y3, z3
 }
 
+// ScalarMult returns k*(Bx,By) where k is a number in big-endian form.
 func (ec *EllipticCurve) ScalarMult(Bx, By *big.Int, k []byte) (
 	*big.Int, *big.Int) {
 	Bz := new(big.Int).SetInt64(1)
