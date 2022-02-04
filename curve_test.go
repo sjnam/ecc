@@ -10,11 +10,11 @@ import (
 	"testing"
 )
 
-var curve, secp256k1 *EllipticCurve
+var simple, secp256k1 *EllipticCurve
 
 func init() {
 	// simple curve
-	curve = &EllipticCurve{
+	simple = &EllipticCurve{
 		P: big.NewInt(97),
 		A: big.NewInt(2),
 		B: big.NewInt(3),
@@ -56,7 +56,7 @@ func TestAdd(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		rx, ry := curve.Add(big.NewInt(c.px), big.NewInt(c.py),
+		rx, ry := simple.Add(big.NewInt(c.px), big.NewInt(c.py),
 			big.NewInt(c.qx), big.NewInt(c.qy))
 		if c.wantX.Cmp(rx) != 0 || c.wantY.Cmp(ry) != 0 {
 			t.Errorf("Add() == (%v,%v), want (%v, %v)", rx, ry, c.wantX, c.wantY)
@@ -84,7 +84,7 @@ func TestDouble(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		rx, ry := curve.Double(big.NewInt(c.px), big.NewInt(c.py))
+		rx, ry := simple.Double(big.NewInt(c.px), big.NewInt(c.py))
 		if c.wantX.Cmp(rx) != 0 || c.wantY.Cmp(ry) != 0 {
 			t.Errorf("Double() == (%v,%v), want (%v, %v)",
 				rx, ry, c.wantX, c.wantY)
@@ -124,7 +124,7 @@ func TestScalarMult(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		rx, ry := curve.ScalarMult(big.NewInt(c.px), big.NewInt(c.py),
+		rx, ry := simple.ScalarMult(big.NewInt(c.px), big.NewInt(c.py),
 			big.NewInt(c.k).Bytes())
 		if c.wantX.Cmp(rx) != 0 || c.wantY.Cmp(ry) != 0 {
 			t.Errorf("ScalarMult() == (%v,%v), want (%v, %v)",
