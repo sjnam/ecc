@@ -1,6 +1,7 @@
 package ecurve
 
 // This code is based from golang's crypto/elliptic
+//
 // This package operates, internally, on Jacobian coordinates. For a given
 // (x, y) position on the curve, the Jacobian coordinates are (x1, y1, z1)
 // where x = x1/z1² and y = y1/z1³. The greatest speedups come when the whole
@@ -13,6 +14,11 @@ import (
 	"math/big"
 )
 
+// EllipticCurve represents a short-form Weierstrass curve. y² = x³ + ax + b
+//
+// Note that the point at infinity (0, 0) is not considered on the curve, and
+// although it can be returned by Add, Double, ScalarMult, or ScalarBaseMult, it
+// can't be marshaled or unmarshaled, and IsOnCurve will return false for it.
 type EllipticCurve struct {
 	P       *big.Int // the order of the underlying field
 	A, B    *big.Int // the constant of the BitCurve equation
@@ -48,6 +54,17 @@ func (ec *EllipticCurve) IsOnCurve(x, y *big.Int) bool {
 	return x3.Cmp(y2) == 0
 }
 
+// zForAffine returns a Jacobian Z value for the affine point (x, y). If x and
+// y are zero, it assumes that they represent the point at infinity because (0,
+// 0) is not on the any of the curves handled here.
+func zForAffine(x, y *big.Int) *big.Int {
+	z := new(big.Int)
+	if x.Sign() != 0 || y.Sign() != 0 {
+		z.SetInt64(1)
+	}
+	return z
+}
+
 // affineFromJacobian reverses the Jacobian transform. See the comment at the
 // top of the file.
 func (ec *EllipticCurve) affineFromJacobian(x, y, z *big.Int) (
@@ -67,19 +84,9 @@ func (ec *EllipticCurve) affineFromJacobian(x, y, z *big.Int) (
 
 // Add returns the sum of (x1,y1) and (x2,y2)
 func (ec *EllipticCurve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
-	// If one point is at infinity, return the other point.
-	// Adding the point at infinity to any point will preserve the other point.
-	if x1.Sign() == 0 && y1.Sign() == 0 {
-		return x2, y2
-	}
-	if x2.Sign() == 0 && y2.Sign() == 0 {
-		return x1, y1
-	}
-	z := new(big.Int).SetInt64(1)
-	if x1.Cmp(x2) == 0 && y1.Cmp(y2) == 0 {
-		return ec.affineFromJacobian(ec.doubleJacobian(x1, y1, z))
-	}
-	return ec.affineFromJacobian(ec.addJacobian(x1, y1, z, x2, y2, z))
+	z1 := zForAffine(x1, y1)
+	z2 := zForAffine(x2, y2)
+	return ec.affineFromJacobian(ec.addJacobian(x1, y1, z1, x2, y2, z2))
 }
 
 // addJacobian takes two points in Jacobian coordinates, (x1, y1, z1) and
@@ -87,6 +94,20 @@ func (ec *EllipticCurve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 func (ec *EllipticCurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (
 	*big.Int, *big.Int, *big.Int) {
 	// See http://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#addition-add-2007-bl
+	x3, y3, z3 := new(big.Int), new(big.Int), new(big.Int)
+	if z1.Sign() == 0 {
+		x3.Set(x2)
+		y3.Set(y2)
+		z3.Set(z2)
+		return x3, y3, z3
+	}
+	if z2.Sign() == 0 {
+		x3.Set(x1)
+		y3.Set(y1)
+		z3.Set(z1)
+		return x3, y3, z3
+	}
+
 	z1z1 := new(big.Int).Mul(z1, z1)
 	z1z1.Mod(z1z1, ec.P)
 	z2z2 := new(big.Int).Mul(z2, z2)
@@ -97,6 +118,7 @@ func (ec *EllipticCurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (
 	u2 := new(big.Int).Mul(x2, z1z1)
 	u2.Mod(u2, ec.P)
 	h := new(big.Int).Sub(u2, u1)
+	xEqual := h.Sign() == 0
 	if h.Sign() == -1 {
 		h.Add(h, ec.P)
 	}
@@ -114,17 +136,21 @@ func (ec *EllipticCurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (
 	if r.Sign() == -1 {
 		r.Add(r, ec.P)
 	}
+	yEqual := r.Sign() == 0
+	if xEqual && yEqual {
+		return ec.doubleJacobian(x1, y1, z1)
+	}
 	r.Lsh(r, 1)
 	v := new(big.Int).Mul(u1, i)
 
-	x3 := new(big.Int).Set(r)
+	x3 = x3.Set(r)
 	x3.Mul(x3, x3)
 	x3.Sub(x3, j)
 	x3.Sub(x3, v)
 	x3.Sub(x3, v)
 	x3.Mod(x3, ec.P)
 
-	y3 := new(big.Int).Set(r)
+	y3 = y3.Set(r)
 	v.Sub(v, x3)
 	y3.Mul(y3, v)
 	s1.Mul(s1, j)
@@ -132,7 +158,7 @@ func (ec *EllipticCurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (
 	y3.Sub(y3, s1)
 	y3.Mod(y3, ec.P)
 
-	z3 := new(big.Int).Add(z1, z2)
+	z3 = z3.Add(z1, z2)
 	z3.Mul(z3, z3)
 	z3.Sub(z3, z1z1)
 	if z3.Sign() == -1 {
@@ -150,7 +176,7 @@ func (ec *EllipticCurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (
 
 // Double returns 2*(x,y)
 func (ec *EllipticCurve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
-	z1 := new(big.Int).SetInt64(1)
+	z1 := zForAffine(x1, y1)
 	return ec.affineFromJacobian(ec.doubleJacobian(x1, y1, z1))
 }
 
@@ -221,17 +247,18 @@ func (ec *EllipticCurve) doubleJacobian(x, y, z *big.Int) (
 
 func (ec *EllipticCurve) ScalarMult(Bx, By *big.Int, k []byte) (
 	*big.Int, *big.Int) {
-	x, y := new(big.Int), new(big.Int)
+	Bz := new(big.Int).SetInt64(1)
+	x, y, z := new(big.Int), new(big.Int), new(big.Int)
 	for _, b := range k {
 		for bitNum := 0; bitNum < 8; bitNum++ {
-			x, y = ec.Double(x, y)
+			x, y, z = ec.doubleJacobian(x, y, z)
 			if b&0x80 == 0x80 {
-				x, y = ec.Add(x, y, Bx, By)
+				x, y, z = ec.addJacobian(Bx, By, Bz, x, y, z)
 			}
 			b <<= 1
 		}
 	}
-	return x, y
+	return ec.affineFromJacobian(x, y, z)
 }
 
 // ScalarBaseMult returns k*G, where G is the base point of the group and k is
