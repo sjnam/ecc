@@ -2,13 +2,18 @@ package ecurve
 
 import (
 	"bytes"
+	"crypto/elliptic"
 	"fmt"
 	"math/big"
 	"testing"
 )
 
 func TestAdd(t *testing.T) {
-	curve := NewEllipticCurve(big.NewInt(97), big.NewInt(2), big.NewInt(3))
+	curve := &EllipticCurve{
+		P: big.NewInt(97),
+		A: big.NewInt(2),
+		B: big.NewInt(3),
+	}
 	cases := []struct {
 		px, py       int64
 		qx, qy       int64
@@ -33,7 +38,11 @@ func TestAdd(t *testing.T) {
 }
 
 func TestDouble(t *testing.T) {
-	curve := NewEllipticCurve(big.NewInt(97), big.NewInt(2), big.NewInt(3))
+	curve := &EllipticCurve{
+		P: big.NewInt(97),
+		A: big.NewInt(2),
+		B: big.NewInt(3),
+	}
 	cases := []struct {
 		px, py       int64
 		wantx, wanty *big.Int
@@ -61,7 +70,11 @@ func TestDouble(t *testing.T) {
 }
 
 func TestScalarMult(t *testing.T) {
-	curve := NewEllipticCurve(big.NewInt(97), big.NewInt(2), big.NewInt(3))
+	curve := &EllipticCurve{
+		P: big.NewInt(97),
+		A: big.NewInt(2),
+		B: big.NewInt(3),
+	}
 	cases := []struct {
 		px, py, k    int64
 		wantx, wanty *big.Int
@@ -175,8 +188,8 @@ func TestECDH(t *testing.T) {
 
 	ssx1, ssy1 := curve.ScalarMult(alicePubx, alicePuby, bobPriv.Bytes())
 	ssx2, ssy2 := curve.ScalarMult(bobPubx, bobPuby, alicePriv.Bytes())
-	aliceSharedSecret := curve.Marshal(ssx1, ssy1)
-	bobSharedSecret := curve.Marshal(ssx2, ssy2)
+	aliceSharedSecret := elliptic.Marshal(curve, ssx1, ssy1)
+	bobSharedSecret := elliptic.Marshal(curve, ssx2, ssy2)
 	if bytes.Compare(aliceSharedSecret, bobSharedSecret) != 0 {
 		t.Errorf("sharedSecret1: 0x%x\nsharedSecret2: 0x%x",
 			aliceSharedSecret, bobSharedSecret)

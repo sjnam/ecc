@@ -1,7 +1,6 @@
 package ecurve
 
-// This code is based from https://github.com/ethereum/go-ethereum/blob/master/crypto/secp256k1/curve.go
-//
+// This code is based from golang's crypto/elliptic
 // This package operates, internally, on Jacobian coordinates. For a given
 // (x, y) position on the curve, the Jacobian coordinates are (x1, y1, z1)
 // where x = x1/z1² and y = y1/z1³. The greatest speedups come when the whole
@@ -14,27 +13,6 @@ import (
 	"math/big"
 )
 
-const (
-	// number of bits in big.Word
-	wordBits = 32 << (uint64(^big.Word(0)) >> 63)
-	// number of bytes in big.Word
-	wordBytes = wordBits / 8
-)
-
-// readBits encodes the absolute value of bigint as big-endian bytes. Callers
-// must ensure that buf has enough space. If buf is too short the result will
-// be incomplete.
-func readBits(bigint *big.Int, buf []byte) {
-	i := len(buf)
-	for _, d := range bigint.Bits() {
-		for j := 0; j < wordBytes && i > 0; j++ {
-			i--
-			buf[i] = byte(d)
-			d >>= 8
-		}
-	}
-}
-
 type EllipticCurve struct {
 	P       *big.Int // the order of the underlying field
 	A, B    *big.Int // the constant of the BitCurve equation
@@ -45,9 +23,11 @@ type EllipticCurve struct {
 }
 
 func (ec *EllipticCurve) Params() *elliptic.CurveParams {
+	N := new(big.Int).Mul(ec.N, ec.H)
+	N.Mod(N, ec.P)
 	return &elliptic.CurveParams{
 		P:       ec.P,
-		N:       new(big.Int).Mul(ec.N, ec.H),
+		N:       N,
 		B:       ec.B,
 		Gx:      ec.Gx,
 		Gy:      ec.Gy,
@@ -55,27 +35,16 @@ func (ec *EllipticCurve) Params() *elliptic.CurveParams {
 	}
 }
 
-func NewEllipticCurve(p, a, b *big.Int) *EllipticCurve {
-	return &EllipticCurve{
-		P: p,
-		A: a,
-		B: b,
-	}
-}
-
 // IsOnCurve returns true if the given (x,y) lies on the Curve.
 func (ec *EllipticCurve) IsOnCurve(x, y *big.Int) bool {
 	// y² = x³ + ax + b
-	y2 := new(big.Int).Mul(y, y) //y²
-	y2.Mod(y2, ec.P)             //y²%P
-
-	x3 := new(big.Int).Mul(x, x) //x²
-	x3.Mul(x3, x)                //x³
-
+	y2 := new(big.Int).Mul(y, y)          //y²
+	y2.Mod(y2, ec.P)                      //y²%P
+	x3 := new(big.Int).Mul(x, x)          //x²
+	x3.Mul(x3, x)                         //x³
 	x3.Add(x3, new(big.Int).Mul(x, ec.A)) // x³+AX
 	x3.Add(x3, ec.B)                      //x³+B
 	x3.Mod(x3, ec.P)                      //(x³+B)%P
-
 	return x3.Cmp(y2) == 0
 }
 
@@ -192,14 +161,19 @@ func (ec *EllipticCurve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 func (ec *EllipticCurve) doubleJacobian(x, y, z *big.Int) (
 	*big.Int, *big.Int, *big.Int) {
 	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
-	xx := new(big.Int).Mul(x, x)     //X1²
-	yy := new(big.Int).Mul(y, y)     //Y1²
+	xx := new(big.Int).Mul(x, x) //X1²
+	xx.Mod(xx, ec.P)
+	yy := new(big.Int).Mul(y, y) //Y1²
+	yy.Mod(yy, ec.P)
 	yyyy := new(big.Int).Mul(yy, yy) //YY²
-	zz := new(big.Int).Mul(z, z)     //Z1²
+	yyyy.Mod(yyyy, ec.P)
+	zz := new(big.Int).Mul(z, z) //Z1²
+	zz.Mod(zz, ec.P)
 
 	s := new(big.Int).Add(x, yy) //X1+YY
 	s.Mul(s, s)                  //(X1+YY)²
-	s.Sub(s, xx)                 //(X1+B)²-XX
+	s.Mod(s, ec.P)
+	s.Sub(s, xx) //(X1+B)²-XX
 	if s.Sign() == -1 {
 		s.Add(s, ec.P)
 	}
@@ -208,15 +182,18 @@ func (ec *EllipticCurve) doubleJacobian(x, y, z *big.Int) (
 		s.Add(s, ec.P)
 	}
 	s.Mul(s, big.NewInt(2)) //2*((X1+B)²-XX-YYYY)
+	s.Mod(s, ec.P)
 
 	m := new(big.Int).Mul(big.NewInt(3), xx)                   //3*XX
 	m.Add(m, new(big.Int).Mul(ec.A, new(big.Int).Mul(zz, zz))) //3*XX+A*ZZ²
+	m.Mod(m, ec.P)
 
 	t := new(big.Int).Mul(m, m)                   //M²
 	t.Add(t, new(big.Int).Mul(s, big.NewInt(-2))) //M²-2*S
 	if t.Sign() == -1 {
 		t.Add(t, ec.P)
 	}
+	t.Mod(t, ec.P)
 
 	x3 := t
 	s.Sub(s, t) //S-T
@@ -228,6 +205,7 @@ func (ec *EllipticCurve) doubleJacobian(x, y, z *big.Int) (
 	if y3.Sign() == -1 {
 		y3.Add(y3, ec.P)
 	}
+	y3.Mod(y3, ec.P)
 	z3 := new(big.Int).Add(y, z) //Y1+Z1
 	z3.Mul(z3, z3)               //(Y1+Z1)²
 	z3.Sub(z3, yy)               //(Y1+Z1)²-YY
@@ -238,6 +216,7 @@ func (ec *EllipticCurve) doubleJacobian(x, y, z *big.Int) (
 	if z3.Sign() == -1 {
 		z3.Add(z3, ec.P)
 	}
+	z3.Mod(z3, ec.P)
 
 	return x3, y3, z3
 }
@@ -261,30 +240,4 @@ func (ec *EllipticCurve) ScalarMult(Bx, By *big.Int, k []byte) (
 // an integer in big-endian form.
 func (ec *EllipticCurve) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
 	return ec.ScalarMult(ec.Gx, ec.Gy, k)
-}
-
-// Marshal converts a point into the form specified in section 4.3.6 of ANSI
-// X9.62.
-func (ec *EllipticCurve) Marshal(x, y *big.Int) []byte {
-	byteLen := (ec.BitSize + 7) >> 3
-	ret := make([]byte, 1+2*byteLen)
-	ret[0] = 4 // uncompressed point flag
-	readBits(x, ret[1:1+byteLen])
-	readBits(y, ret[1+byteLen:])
-	return ret
-}
-
-// Unmarshal converts a point, serialised by Marshal, into an x, y pair. On
-// error, x = nil.
-func (ec *EllipticCurve) Unmarshal(data []byte) (x, y *big.Int) {
-	byteLen := (ec.BitSize + 7) >> 3
-	if len(data) != 1+2*byteLen {
-		return
-	}
-	if data[0] != 4 { // uncompressed form
-		return
-	}
-	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
-	y = new(big.Int).SetBytes(data[1+byteLen:])
-	return
 }
