@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/sha512"
 	"fmt"
 	"math/big"
 	"testing"
@@ -174,15 +173,5 @@ func TestECDH(t *testing.T) {
 	if !bytes.Equal(aliSharedSecret, bobSharedSecret) {
 		t.Errorf("sharedSecret1: 0x%x\nsharedSecret2: 0x%x",
 			aliSharedSecret, bobSharedSecret)
-	}
-}
-
-func TestECDSA(t *testing.T) {
-	priv, Hx, Hy, _ := elliptic.GenerateKey(secp256k1, rand.Reader)
-	h := sha512.Sum512([]byte("Hello, world."))
-
-	r, s := Sign(priv, secp256k1, h[:])
-	if !Verify(Hx, Hy, secp256k1, h[:], r, s) {
-		t.Error("invalid signature")
 	}
 }
