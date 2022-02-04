@@ -8,12 +8,37 @@ import (
 	"testing"
 )
 
-func TestAdd(t *testing.T) {
-	curve := &EllipticCurve{
+var curve, secp256k1 *EllipticCurve
+
+func init() {
+	// simple curve
+	curve = &EllipticCurve{
 		P: big.NewInt(97),
 		A: big.NewInt(2),
 		B: big.NewInt(3),
 	}
+
+	// secp256k1 curve
+	p, _ := new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F", 0)
+	a, _ := new(big.Int).SetString("0x0000000000000000000000000000000000000000000000000000000000000000", 0)
+	b, _ := new(big.Int).SetString("0x0000000000000000000000000000000000000000000000000000000000000007", 0)
+	gx, _ := new(big.Int).SetString("0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 0)
+	gy, _ := new(big.Int).SetString("0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 0)
+	n, _ := new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 0)
+	h, _ := new(big.Int).SetString("0x0000000000000000000000000000000000000000000000000000000000000001", 0)
+	secp256k1 = &EllipticCurve{
+		P:       p,
+		A:       a,
+		B:       b,
+		Gx:      gx,
+		Gy:      gy,
+		N:       n,
+		H:       h,
+		BitSize: 256,
+	}
+}
+
+func TestAdd(t *testing.T) {
 	cases := []struct {
 		px, py       int64
 		qx, qy       int64
@@ -38,11 +63,6 @@ func TestAdd(t *testing.T) {
 }
 
 func TestDouble(t *testing.T) {
-	curve := &EllipticCurve{
-		P: big.NewInt(97),
-		A: big.NewInt(2),
-		B: big.NewInt(3),
-	}
 	cases := []struct {
 		px, py       int64
 		wantX, wantY *big.Int
@@ -70,11 +90,6 @@ func TestDouble(t *testing.T) {
 }
 
 func TestScalarMult(t *testing.T) {
-	curve := &EllipticCurve{
-		P: big.NewInt(97),
-		A: big.NewInt(2),
-		B: big.NewInt(3),
-	}
 	cases := []struct {
 		px, py, k    int64
 		wantX, wantY *big.Int
@@ -115,25 +130,6 @@ func TestScalarMult(t *testing.T) {
 }
 
 func TestSECP256k1(t *testing.T) {
-	p, _ := new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F", 0)
-	a, _ := new(big.Int).SetString("0x0000000000000000000000000000000000000000000000000000000000000000", 0)
-	b, _ := new(big.Int).SetString("0x0000000000000000000000000000000000000000000000000000000000000007", 0)
-	gx, _ := new(big.Int).SetString("0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 0)
-	gy, _ := new(big.Int).SetString("0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 0)
-	n, _ := new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 0)
-	h, _ := new(big.Int).SetString("0x0000000000000000000000000000000000000000000000000000000000000001", 0)
-
-	curve := &EllipticCurve{
-		P:       p,
-		A:       a,
-		B:       b,
-		Gx:      gx,
-		Gy:      gy,
-		N:       n,
-		H:       h,
-		BitSize: 256,
-	}
-
 	cases := []struct {
 		priv       string
 		pubX, pubY string
@@ -152,7 +148,7 @@ func TestSECP256k1(t *testing.T) {
 
 	for _, c := range cases {
 		priv, _ := new(big.Int).SetString(c.priv, 0)
-		pubX, pubY := curve.ScalarBaseMult(priv.Bytes())
+		pubX, pubY := secp256k1.ScalarBaseMult(priv.Bytes())
 		gotX := fmt.Sprintf("0x%x", pubX)
 		gotY := fmt.Sprintf("0x%x", pubY)
 		if gotX != c.pubX || gotY != c.pubY {
@@ -162,34 +158,15 @@ func TestSECP256k1(t *testing.T) {
 }
 
 func TestECDH(t *testing.T) {
-	p, _ := new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F", 0)
-	a, _ := new(big.Int).SetString("0x0000000000000000000000000000000000000000000000000000000000000000", 0)
-	b, _ := new(big.Int).SetString("0x0000000000000000000000000000000000000000000000000000000000000007", 0)
-	gx, _ := new(big.Int).SetString("0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 0)
-	gy, _ := new(big.Int).SetString("0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 0)
-	n, _ := new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 0)
-	h, _ := new(big.Int).SetString("0x0000000000000000000000000000000000000000000000000000000000000001", 0)
-
-	curve := &EllipticCurve{
-		P:       p,
-		A:       a,
-		B:       b,
-		Gx:      gx,
-		Gy:      gy,
-		N:       n,
-		H:       h,
-		BitSize: 256,
-	}
-
 	alicePriv, _ := new(big.Int).SetString("0xe32868331fa8ef0138de0de85478346aec5e3912b6029ae71691c384237a3eeb", 0)
-	alicePubX, alicePubY := curve.ScalarBaseMult(alicePriv.Bytes())
+	alicePubX, alicePubY := secp256k1.ScalarBaseMult(alicePriv.Bytes())
 	bobPriv, _ := new(big.Int).SetString("0xcef147652aa90162e1fff9cf07f2605ea05529ca215a04350a98ecc24aa34342", 0)
-	bobPubX, bobPubY := curve.ScalarBaseMult(bobPriv.Bytes())
+	bobPubX, bobPubY := secp256k1.ScalarBaseMult(bobPriv.Bytes())
 
-	ssx1, ssy1 := curve.ScalarMult(alicePubX, alicePubY, bobPriv.Bytes())
-	ssx2, ssy2 := curve.ScalarMult(bobPubX, bobPubY, alicePriv.Bytes())
-	aliceSharedSecret := elliptic.Marshal(curve, ssx1, ssy1)
-	bobSharedSecret := elliptic.Marshal(curve, ssx2, ssy2)
+	ssx1, ssy1 := secp256k1.ScalarMult(alicePubX, alicePubY, bobPriv.Bytes())
+	ssx2, ssy2 := secp256k1.ScalarMult(bobPubX, bobPubY, alicePriv.Bytes())
+	aliceSharedSecret := elliptic.Marshal(secp256k1, ssx1, ssy1)
+	bobSharedSecret := elliptic.Marshal(secp256k1, ssx2, ssy2)
 	if bytes.Compare(aliceSharedSecret, bobSharedSecret) != 0 {
 		t.Errorf("sharedSecret1: 0x%x\nsharedSecret2: 0x%x",
 			aliceSharedSecret, bobSharedSecret)
