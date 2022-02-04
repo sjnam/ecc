@@ -20,12 +20,11 @@ func init() {
 
 	// secp256k1 curve
 	p, _ := new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F", 0)
-	a, _ := new(big.Int).SetString("0x0000000000000000000000000000000000000000000000000000000000000000", 0)
-	b, _ := new(big.Int).SetString("0x0000000000000000000000000000000000000000000000000000000000000007", 0)
+	a, b := big.NewInt(0), big.NewInt(7)
 	gx, _ := new(big.Int).SetString("0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 0)
 	gy, _ := new(big.Int).SetString("0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 0)
 	n, _ := new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 0)
-	h, _ := new(big.Int).SetString("0x0000000000000000000000000000000000000000000000000000000000000001", 0)
+	h := big.NewInt(1)
 	secp256k1 = &EllipticCurve{
 		P:       p,
 		A:       a,
@@ -145,7 +144,6 @@ func TestSECP256k1(t *testing.T) {
 			"0x9e773199edc1ea792b150270ea3317689286c9fe239dd5b9c5cfd9e81b4b632",
 		},
 	}
-
 	for _, c := range cases {
 		priv, _ := new(big.Int).SetString(c.priv, 0)
 		pubX, pubY := secp256k1.ScalarBaseMult(priv.Bytes())
@@ -162,7 +160,6 @@ func TestECDH(t *testing.T) {
 	alicePubX, alicePubY := secp256k1.ScalarBaseMult(alicePriv.Bytes())
 	bobPriv, _ := new(big.Int).SetString("0xcef147652aa90162e1fff9cf07f2605ea05529ca215a04350a98ecc24aa34342", 0)
 	bobPubX, bobPubY := secp256k1.ScalarBaseMult(bobPriv.Bytes())
-
 	ssx1, ssy1 := secp256k1.ScalarMult(alicePubX, alicePubY, bobPriv.Bytes())
 	ssx2, ssy2 := secp256k1.ScalarMult(bobPubX, bobPubY, alicePriv.Bytes())
 	aliceSharedSecret := elliptic.Marshal(secp256k1, ssx1, ssy1)
