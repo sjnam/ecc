@@ -55,14 +55,12 @@ func (ec *EllipticCurve) affineFromJacobian(x, y, z *big.Int) (
 	if z.Sign() == 0 {
 		return new(big.Int), new(big.Int)
 	}
-
-	zinv := new(big.Int).ModInverse(z, ec.P)
-	zinvsq := new(big.Int).Mul(zinv, zinv)
-
-	xOut = new(big.Int).Mul(x, zinvsq)
+	zInv := new(big.Int).ModInverse(z, ec.P)
+	zInvSq := new(big.Int).Mul(zInv, zInv)
+	xOut = new(big.Int).Mul(x, zInvSq)
 	xOut.Mod(xOut, ec.P)
-	zinvsq.Mul(zinvsq, zinv)
-	yOut = new(big.Int).Mul(y, zinvsq)
+	zInvSq.Mul(zInvSq, zInv)
+	yOut = new(big.Int).Mul(y, zInvSq)
 	yOut.Mod(yOut, ec.P)
 	return
 }

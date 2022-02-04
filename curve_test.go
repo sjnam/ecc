@@ -17,7 +17,7 @@ func TestAdd(t *testing.T) {
 	cases := []struct {
 		px, py       int64
 		qx, qy       int64
-		wantx, wanty *big.Int
+		wantX, wantY *big.Int
 	}{
 		{
 			17, 10, 95, 31,
@@ -31,8 +31,8 @@ func TestAdd(t *testing.T) {
 	for _, c := range cases {
 		rx, ry := curve.Add(big.NewInt(c.px), big.NewInt(c.py),
 			big.NewInt(c.qx), big.NewInt(c.qy))
-		if c.wantx.Cmp(rx) != 0 || c.wanty.Cmp(ry) != 0 {
-			t.Errorf("Add() == (%v,%v), want (%v, %v)", rx, ry, c.wantx, c.wanty)
+		if c.wantX.Cmp(rx) != 0 || c.wantY.Cmp(ry) != 0 {
+			t.Errorf("Add() == (%v,%v), want (%v, %v)", rx, ry, c.wantX, c.wantY)
 		}
 	}
 }
@@ -45,7 +45,7 @@ func TestDouble(t *testing.T) {
 	}
 	cases := []struct {
 		px, py       int64
-		wantx, wanty *big.Int
+		wantX, wantY *big.Int
 	}{
 		{
 			3, 6,
@@ -62,9 +62,9 @@ func TestDouble(t *testing.T) {
 	}
 	for _, c := range cases {
 		rx, ry := curve.Double(big.NewInt(c.px), big.NewInt(c.py))
-		if c.wantx.Cmp(rx) != 0 || c.wanty.Cmp(ry) != 0 {
+		if c.wantX.Cmp(rx) != 0 || c.wantY.Cmp(ry) != 0 {
 			t.Errorf("Double() == (%v,%v), want (%v, %v)",
-				rx, ry, c.wantx, c.wanty)
+				rx, ry, c.wantX, c.wantY)
 		}
 	}
 }
@@ -77,7 +77,7 @@ func TestScalarMult(t *testing.T) {
 	}
 	cases := []struct {
 		px, py, k    int64
-		wantx, wanty *big.Int
+		wantX, wantY *big.Int
 	}{
 		{
 			3, 6, 1,
@@ -107,14 +107,14 @@ func TestScalarMult(t *testing.T) {
 	for _, c := range cases {
 		rx, ry := curve.ScalarMult(big.NewInt(c.px), big.NewInt(c.py),
 			big.NewInt(c.k).Bytes())
-		if c.wantx.Cmp(rx) != 0 || c.wanty.Cmp(ry) != 0 {
+		if c.wantX.Cmp(rx) != 0 || c.wantY.Cmp(ry) != 0 {
 			t.Errorf("ScalarMult() == (%v,%v), want (%v, %v)",
-				rx, ry, c.wantx, c.wanty)
+				rx, ry, c.wantX, c.wantY)
 		}
 	}
 }
 
-func TestSecp256k1(t *testing.T) {
+func TestSECP256k1(t *testing.T) {
 	p, _ := new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F", 0)
 	a, _ := new(big.Int).SetString("0x0000000000000000000000000000000000000000000000000000000000000000", 0)
 	b, _ := new(big.Int).SetString("0x0000000000000000000000000000000000000000000000000000000000000007", 0)
@@ -136,7 +136,7 @@ func TestSecp256k1(t *testing.T) {
 
 	cases := []struct {
 		priv       string
-		pubx, puby string
+		pubX, pubY string
 	}{
 		{
 			"0xe32868331fa8ef0138de0de85478346aec5e3912b6029ae71691c384237a3eeb",
@@ -152,11 +152,11 @@ func TestSecp256k1(t *testing.T) {
 
 	for _, c := range cases {
 		priv, _ := new(big.Int).SetString(c.priv, 0)
-		pubx, puby := curve.ScalarBaseMult(priv.Bytes())
-		gotx := fmt.Sprintf("0x%x", pubx)
-		goty := fmt.Sprintf("0x%x", puby)
-		if gotx != c.pubx || goty != c.puby {
-			t.Errorf("want: (%s,%s)\ngot: (%s,%s)", c.pubx, c.puby, gotx, goty)
+		pubX, pubY := curve.ScalarBaseMult(priv.Bytes())
+		gotX := fmt.Sprintf("0x%x", pubX)
+		gotY := fmt.Sprintf("0x%x", pubY)
+		if gotX != c.pubX || gotY != c.pubY {
+			t.Errorf("want: (%s,%s)\ngot: (%s,%s)", c.pubX, c.pubY, gotX, gotY)
 		}
 	}
 }
@@ -182,12 +182,12 @@ func TestECDH(t *testing.T) {
 	}
 
 	alicePriv, _ := new(big.Int).SetString("0xe32868331fa8ef0138de0de85478346aec5e3912b6029ae71691c384237a3eeb", 0)
-	alicePubx, alicePuby := curve.ScalarBaseMult(alicePriv.Bytes())
+	alicePubX, alicePubY := curve.ScalarBaseMult(alicePriv.Bytes())
 	bobPriv, _ := new(big.Int).SetString("0xcef147652aa90162e1fff9cf07f2605ea05529ca215a04350a98ecc24aa34342", 0)
-	bobPubx, bobPuby := curve.ScalarBaseMult(bobPriv.Bytes())
+	bobPubX, bobPubY := curve.ScalarBaseMult(bobPriv.Bytes())
 
-	ssx1, ssy1 := curve.ScalarMult(alicePubx, alicePuby, bobPriv.Bytes())
-	ssx2, ssy2 := curve.ScalarMult(bobPubx, bobPuby, alicePriv.Bytes())
+	ssx1, ssy1 := curve.ScalarMult(alicePubX, alicePubY, bobPriv.Bytes())
+	ssx2, ssy2 := curve.ScalarMult(bobPubX, bobPubY, alicePriv.Bytes())
 	aliceSharedSecret := elliptic.Marshal(curve, ssx1, ssy1)
 	bobSharedSecret := elliptic.Marshal(curve, ssx2, ssy2)
 	if bytes.Compare(aliceSharedSecret, bobSharedSecret) != 0 {
