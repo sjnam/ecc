@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	// number of bits in a big.Word
+	// number of bits in big.Word
 	wordBits = 32 << (uint64(^big.Word(0)) >> 63)
-	// number of bytes in a big.Word
+	// number of bytes in big.Word
 	wordBytes = wordBits / 8
 )
 
@@ -223,13 +223,13 @@ func (ec *EllipticCurve) doubleJacobian(x, y, z *big.Int) (
 func (ec *EllipticCurve) ScalarMult(Bx, By *big.Int, k []byte) (
 	*big.Int, *big.Int) {
 	x, y := new(big.Int), new(big.Int)
-	for _, byte := range k {
+	for _, b := range k {
 		for bitNum := 0; bitNum < 8; bitNum++ {
 			x, y = ec.Double(x, y)
-			if byte&0x80 == 0x80 {
+			if b&0x80 == 0x80 {
 				x, y = ec.Add(x, y, Bx, By)
 			}
-			byte <<= 1
+			b <<= 1
 		}
 	}
 	return x, y
