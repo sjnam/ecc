@@ -200,22 +200,44 @@ func (ec *EllipticCurve) doubleJacobian(x, y, z *big.Int) (
 	s := new(big.Int).Add(x, yy) //X1+YY
 	s.Mul(s, s)                  //(X1+YY)²
 	s.Sub(s, xx)                 //(X1+B)²-XX
-	s.Sub(s, yyyy)               //(X1+B)²-XX-YYYY
-	s.Mul(s, big.NewInt(2))      //2*((X1+B)²-XX-YYYY)
+	if s.Sign() == -1 {
+		s.Add(s, ec.P)
+	}
+	s.Sub(s, yyyy) //(X1+B)²-XX-YYYY
+	if s.Sign() == -1 {
+		s.Add(s, ec.P)
+	}
+	s.Mul(s, big.NewInt(2)) //2*((X1+B)²-XX-YYYY)
 
 	m := new(big.Int).Mul(big.NewInt(3), xx)                   //3*XX
 	m.Add(m, new(big.Int).Mul(ec.A, new(big.Int).Mul(zz, zz))) //3*XX+A*ZZ²
 
 	t := new(big.Int).Mul(m, m)                   //M²
 	t.Add(t, new(big.Int).Mul(s, big.NewInt(-2))) //M²-2*S
+	if t.Sign() == -1 {
+		t.Add(t, ec.P)
+	}
 
 	x3 := t
-	y3 := new(big.Int).Mul(m, s.Sub(s, t))     //M*(S-T)
+	s.Sub(s, t) //S-T
+	if s.Sign() == -1 {
+		s.Add(s, ec.P)
+	}
+	y3 := new(big.Int).Mul(m, s)               //M*(S-T)
 	y3.Add(y3, yyyy.Mul(yyyy, big.NewInt(-8))) //M*(S-T)-8*YYYY
-	z3 := new(big.Int).Add(y, z)               //Y1+Z1
-	z3.Mul(z3, z3)                             //(Y1+Z1)²
-	z3.Sub(z3, yy)                             //(Y1+Z1)²-YY
-	z3.Sub(z3, zz)                             //(Y1+Z1)²-YY-ZZ
+	if y3.Sign() == -1 {
+		y3.Add(y3, ec.P)
+	}
+	z3 := new(big.Int).Add(y, z) //Y1+Z1
+	z3.Mul(z3, z3)               //(Y1+Z1)²
+	z3.Sub(z3, yy)               //(Y1+Z1)²-YY
+	if z3.Sign() == -1 {
+		z3.Add(z3, ec.P)
+	}
+	z3.Sub(z3, zz) //(Y1+Z1)²-YY-ZZ
+	if z3.Sign() == -1 {
+		z3.Add(z3, ec.P)
+	}
 
 	return x3, y3, z3
 }
