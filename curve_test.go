@@ -1,6 +1,7 @@
 package ecurve
 
 import (
+	"bytes"
 	"fmt"
 	"math/big"
 	"testing"
@@ -174,8 +175,10 @@ func TestECDH(t *testing.T) {
 
 	ssx1, ssy1 := curve.ScalarMult(alicePubx, alicePuby, bobPriv.Bytes())
 	ssx2, ssy2 := curve.ScalarMult(bobPubx, bobPuby, alicePriv.Bytes())
-	if ssx1.Cmp(ssx2) != 0 || ssy1.Cmp(ssy2) != 0 {
-		t.Errorf("sharedSecret1: %x\nsharedSecret2: %x",
-			curve.Marshal(ssx1, ssy1), curve.Marshal(ssx2, ssy2))
+	aliceSharedSecret := curve.Marshal(ssx1, ssy1)
+	bobSharedSecret := curve.Marshal(ssx2, ssy2)
+	if bytes.Compare(aliceSharedSecret, bobSharedSecret) != 0 {
+		t.Errorf("sharedSecret1: 0x%x\nsharedSecret2: 0x%x",
+			aliceSharedSecret, bobSharedSecret)
 	}
 }
