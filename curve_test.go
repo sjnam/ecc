@@ -1,4 +1,4 @@
-package ecurve
+package ecc
 
 import (
 	"bytes"
@@ -168,22 +168,21 @@ func TestECDH(t *testing.T) {
 	ssx1, ssy1 := secp256k1.ScalarMult(aliPubX, aliPubY, bobPriv)
 	ssx2, ssy2 := secp256k1.ScalarMult(bobPubX, bobPubY, aliPriv)
 
-	aliceSharedSecret := elliptic.Marshal(secp256k1, ssx1, ssy1)
+	aliSharedSecret := elliptic.Marshal(secp256k1, ssx1, ssy1)
 	bobSharedSecret := elliptic.Marshal(secp256k1, ssx2, ssy2)
 
-	if !bytes.Equal(aliceSharedSecret, bobSharedSecret) {
+	if !bytes.Equal(aliSharedSecret, bobSharedSecret) {
 		t.Errorf("sharedSecret1: 0x%x\nsharedSecret2: 0x%x",
-			aliceSharedSecret, bobSharedSecret)
+			aliSharedSecret, bobSharedSecret)
 	}
 }
 
-func signMessage(d, z *big.Int) (r, s *big.Int) {
+func sign(d, z *big.Int) (r, s *big.Int) {
 	N := secp256k1.Params().N
 	for {
 		k, xp, _, _ := elliptic.GenerateKey(secp256k1, rand.Reader)
 
-		r = new(big.Int).Set(xp)
-		r.Mod(r, N)
+		r = new(big.Int).Mod(xp, N)
 		if r.Sign() == 0 {
 			continue
 		}
@@ -200,7 +199,7 @@ func signMessage(d, z *big.Int) (r, s *big.Int) {
 	}
 }
 
-func verifySignature(hx, hy, z, r, s *big.Int) bool {
+func verifySignature(Hx, Hy, z, r, s *big.Int) bool {
 	N := secp256k1.Params().N
 	w := new(big.Int).ModInverse(s, N)
 	u1 := new(big.Int).Mul(w, z)
@@ -209,7 +208,7 @@ func verifySignature(hx, hy, z, r, s *big.Int) bool {
 	u2.Mod(u2, N)
 
 	x1, y1 := secp256k1.ScalarBaseMult(u1.Bytes())
-	x2, y2 := secp256k1.ScalarMult(hx, hy, u2.Bytes())
+	x2, y2 := secp256k1.ScalarMult(Hx, Hy, u2.Bytes())
 	x, _ := secp256k1.Add(x1, y1, x2, y2)
 	x.Mod(x, N)
 
@@ -217,16 +216,16 @@ func verifySignature(hx, hy, z, r, s *big.Int) bool {
 }
 
 func TestECDSA(t *testing.T) {
-	priv, hx, hy, err := elliptic.GenerateKey(secp256k1, rand.Reader)
+	d, Hx, Hy, err := elliptic.GenerateKey(secp256k1, rand.Reader)
 	if err != nil {
 		t.Error(err)
 	}
 	h := sha256.Sum256([]byte("Hello, world."))
-	z := new(big.Int).SetBytes(h[:32])
+	z := new(big.Int).SetBytes(h[:])
 
-	r, s := signMessage(new(big.Int).SetBytes(priv), z)
+	r, s := sign(new(big.Int).SetBytes(d), z)
 
-	if !verifySignature(hx, hy, z, r, s) {
+	if !verifySignature(Hx, Hy, z, r, s) {
 		t.Error("invalid signature")
 	}
 }

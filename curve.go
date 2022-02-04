@@ -1,4 +1,4 @@
-package ecurve
+package ecc
 
 // This code is based from golang's crypto/elliptic
 //

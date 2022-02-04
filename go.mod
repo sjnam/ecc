@@ -1,3 +1,3 @@
-module examples/sjnam/ecurve
+module examples/sjnam/ecc
 
 go 1.17
