@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/sha256"
+	"crypto/sha512"
 	"fmt"
 	"math/big"
 	"testing"
@@ -177,55 +177,12 @@ func TestECDH(t *testing.T) {
 	}
 }
 
-func sign(d, z *big.Int) (r, s *big.Int) {
-	N := secp256k1.Params().N
-	for {
-		k, xp, _, _ := elliptic.GenerateKey(secp256k1, rand.Reader)
-
-		r = new(big.Int).Mod(xp, N)
-		if r.Sign() == 0 {
-			continue
-		}
-
-		s = new(big.Int).SetBytes(k)
-		s.ModInverse(s, N)
-		u := new(big.Int).Mul(r, d)
-		u.Add(u, z)
-		s.Mul(s, u)
-		s.Mod(s, N)
-		if s.Sign() != 0 {
-			return
-		}
-	}
-}
-
-func verifySignature(Hx, Hy, z, r, s *big.Int) bool {
-	N := secp256k1.Params().N
-	w := new(big.Int).ModInverse(s, N)
-	u1 := new(big.Int).Mul(w, z)
-	u1.Mod(u1, N)
-	u2 := new(big.Int).Mul(w, r)
-	u2.Mod(u2, N)
-
-	x1, y1 := secp256k1.ScalarBaseMult(u1.Bytes())
-	x2, y2 := secp256k1.ScalarMult(Hx, Hy, u2.Bytes())
-	x, _ := secp256k1.Add(x1, y1, x2, y2)
-	x.Mod(x, N)
-
-	return x.Cmp(r) == 0
-}
-
 func TestECDSA(t *testing.T) {
-	d, Hx, Hy, err := elliptic.GenerateKey(secp256k1, rand.Reader)
-	if err != nil {
-		t.Error(err)
-	}
-	h := sha256.Sum256([]byte("Hello, world."))
-	z := new(big.Int).SetBytes(h[:])
+	priv, Hx, Hy, _ := elliptic.GenerateKey(secp256k1, rand.Reader)
+	h := sha512.Sum512([]byte("Hello, world."))
 
-	r, s := sign(new(big.Int).SetBytes(d), z)
-
-	if !verifySignature(Hx, Hy, z, r, s) {
+	r, s := Sign(priv, secp256k1, h[:])
+	if !Verify(Hx, Hy, secp256k1, h[:], r, s) {
 		t.Error("invalid signature")
 	}
 }
