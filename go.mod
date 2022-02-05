@@ -1,3 +1,3 @@
-module examples/sjnam/ecc
+module github.com/sjnam/ecc
 
 go 1.17
