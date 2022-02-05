@@ -131,6 +131,26 @@ func TestScalarMult(t *testing.T) {
 	}
 }
 
+func TestScalarMultiplication(t *testing.T) {
+	c := &EllipticCurve{
+		P: big.NewInt(17),
+		A: big.NewInt(2),
+		B: big.NewInt(2),
+	}
+
+	xx, yy := new(big.Int), new(big.Int)
+	xp, yp := big.NewInt(5), big.NewInt(1)
+	for i := 1; ; i++ {
+		xx, yy = c.Add(xx, yy, xp, yp)
+		if xx.Sign() == 0 && yy.Sign() == 0 {
+			if i != 19 {
+				t.Fatal("error")
+			}
+			break
+		}
+	}
+}
+
 func TestMarshalCompressed(t *testing.T) {
 	_, pubX, pubY, err := elliptic.GenerateKey(secp256k1, rand.Reader)
 	if err != nil {
