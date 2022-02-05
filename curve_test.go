@@ -3,12 +3,11 @@ package ecc
 import (
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"math/big"
 	"testing"
 )
 
-var simple, secp256k1 *Curve
+var simple *Curve
 
 func init() {
 	// simple curve
@@ -16,25 +15,6 @@ func init() {
 		P: big.NewInt(97),
 		A: big.NewInt(2),
 		B: big.NewInt(3),
-	}
-
-	// secp256k1 curve
-	p, _ := new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F", 0)
-	a, b := big.NewInt(0), big.NewInt(7)
-	gx, _ := new(big.Int).SetString("0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 0)
-	gy, _ := new(big.Int).SetString("0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 0)
-	n, _ := new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 0)
-	h := big.NewInt(1)
-
-	secp256k1 = &Curve{
-		P:       p,
-		A:       a,
-		B:       b,
-		Gx:      gx,
-		Gy:      gy,
-		N:       n,
-		H:       h,
-		BitSize: 256,
 	}
 }
 
@@ -164,33 +144,5 @@ func TestScalarMultiplication(t *testing.T) {
 
 	if x1.Cmp(x2) != 0 || y1.Cmp(y2) != 0 {
 		t.Fatal("error")
-	}
-}
-
-func TestSECP256k1(t *testing.T) {
-	cases := []struct {
-		priv       string
-		pubX, pubY string
-	}{
-		{
-			"0xe32868331fa8ef0138de0de85478346aec5e3912b6029ae71691c384237a3eeb",
-			"0x86b1aa5120f079594348c67647679e7ac4c365b2c01330db782b0ba611c1d677",
-			"0x5f4376a23eed633657a90f385ba21068ed7e29859a7fab09e953cc5b3e89beba",
-		},
-		{
-			"0xcef147652aa90162e1fff9cf07f2605ea05529ca215a04350a98ecc24aa34342",
-			"0x4034127647bb7fdab7f1526c7d10be8b28174e2bba35b06ffd8a26fc2c20134a",
-			"0x9e773199edc1ea792b150270ea3317689286c9fe239dd5b9c5cfd9e81b4b632",
-		},
-	}
-
-	for _, c := range cases {
-		priv, _ := new(big.Int).SetString(c.priv, 0)
-		pubX, pubY := secp256k1.ScalarBaseMult(priv.Bytes())
-		gotX := fmt.Sprintf("0x%x", pubX)
-		gotY := fmt.Sprintf("0x%x", pubY)
-		if gotX != c.pubX || gotY != c.pubY {
-			t.Errorf("want: (%s,%s)\ngot: (%s,%s)", c.pubX, c.pubY, gotX, gotY)
-		}
 	}
 }
