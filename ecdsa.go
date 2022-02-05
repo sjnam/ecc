@@ -24,6 +24,7 @@ func hashToInt(hash []byte, ec *EllipticCurve) *big.Int {
 	if excess > 0 {
 		ret.Rsh(ret, uint(excess))
 	}
+
 	return ret
 }
 

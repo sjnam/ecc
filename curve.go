@@ -47,6 +47,7 @@ func (ec *EllipticCurve) polynomial(x *big.Int) *big.Int {
 	x3.Add(x3, new(big.Int).Mul(x, ec.A)) //x³+AX
 	x3.Add(x3, ec.B)                      //x³+B
 	x3.Mod(x3, ec.P)                      //(x³+B)%P
+
 	return x3
 }
 
@@ -55,6 +56,7 @@ func (ec *EllipticCurve) IsOnCurve(x, y *big.Int) bool {
 	// y² = x³ + ax + b
 	y2 := new(big.Int).Mul(y, y) //y²
 	y2.Mod(y2, ec.P)             //y²%P
+
 	return ec.polynomial(x).Cmp(y2) == 0
 }
 
@@ -66,6 +68,7 @@ func zForAffine(x, y *big.Int) *big.Int {
 	if x.Sign() != 0 || y.Sign() != 0 {
 		z.SetInt64(1)
 	}
+
 	return z
 }
 
@@ -83,6 +86,7 @@ func (ec *EllipticCurve) affineFromJacobian(x, y, z *big.Int) (
 	zInvSq.Mul(zInvSq, zInv)
 	yOut = new(big.Int).Mul(y, zInvSq)
 	yOut.Mod(yOut, ec.P)
+
 	return
 }
 
@@ -90,6 +94,7 @@ func (ec *EllipticCurve) affineFromJacobian(x, y, z *big.Int) (
 func (ec *EllipticCurve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 	z1 := zForAffine(x1, y1)
 	z2 := zForAffine(x2, y2)
+
 	return ec.affineFromJacobian(ec.addJacobian(x1, y1, z1, x2, y2, z2))
 }
 
@@ -213,7 +218,7 @@ func (ec *EllipticCurve) doubleJacobian(x, y, z *big.Int) (
 	s.Lsh(s, 1) //2*((X1+B)²-XX-YYYY)
 	s.Mod(s, ec.P)
 
-	m := new(big.Int).Lsh(xx, 1)
+	m := new(big.Int).Lsh(xx, 1)                               //2*XX
 	m.Add(m, xx)                                               //3*XX
 	m.Add(m, new(big.Int).Mul(ec.A, new(big.Int).Mul(zz, zz))) //3*XX+A*ZZ²
 	m.Mod(m, ec.P)
@@ -266,6 +271,7 @@ func (ec *EllipticCurve) ScalarMult(Bx, By *big.Int, k []byte) (
 			b <<= 1
 		}
 	}
+
 	return ec.affineFromJacobian(x, y, z)
 }
 
@@ -273,45 +279,4 @@ func (ec *EllipticCurve) ScalarMult(Bx, By *big.Int, k []byte) (
 // an integer in big-endian form.
 func (ec *EllipticCurve) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
 	return ec.ScalarMult(ec.Gx, ec.Gy, k)
-}
-
-// MarshalCompressed converts a point on the curve into the compressed form
-// specified in section 4.3.6 of ANSI X9.62.
-func (ec *EllipticCurve) MarshalCompressed(x, y *big.Int) []byte {
-	byteLen := (ec.BitSize + 7) / 8
-	compressed := make([]byte, 1+byteLen)
-	compressed[0] = byte(y.Bit(0)) | 2
-	x.FillBytes(compressed[1:])
-	return compressed
-}
-
-// UnmarshalCompressed converts a point, serialized by MarshalCompressed, into an x, y pair.
-// It is an error if the point is not in compressed form or is not on the curve.
-// On error, x = nil.
-func (ec *EllipticCurve) UnmarshalCompressed(data []byte) (x, y *big.Int) {
-	byteLen := (ec.BitSize + 7) / 8
-	if len(data) != 1+byteLen {
-		return nil, nil
-	}
-	if data[0] != 2 && data[0] != 3 { // compressed form
-		return nil, nil
-	}
-	p := ec.P
-	x = new(big.Int).SetBytes(data[1:])
-	if x.Cmp(p) >= 0 {
-		return nil, nil
-	}
-	// y² = x³ + ax + b
-	y = ec.polynomial(x)
-	y = y.ModSqrt(y, p)
-	if y == nil {
-		return nil, nil
-	}
-	if byte(y.Bit(0)) != data[0]&1 {
-		y.Neg(y).Mod(y, p)
-	}
-	if !ec.IsOnCurve(x, y) {
-		return nil, nil
-	}
-	return
 }

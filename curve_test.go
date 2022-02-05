@@ -2,8 +2,6 @@ package ecc
 
 import (
 	"bytes"
-	"crypto/elliptic"
-	"crypto/rand"
 	"encoding/binary"
 	"fmt"
 	"math/big"
@@ -166,22 +164,6 @@ func TestScalarMultiplication(t *testing.T) {
 
 	if x1.Cmp(x2) != 0 || y1.Cmp(y2) != 0 {
 		t.Fatal("error")
-	}
-}
-
-func TestMarshalCompressed(t *testing.T) {
-	_, pubX, pubY, err := elliptic.GenerateKey(secp256k1, rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	serialized := secp256k1.MarshalCompressed(pubX, pubY)
-	xx, yy := secp256k1.UnmarshalCompressed(serialized)
-	if xx == nil {
-		t.Fatal("fail to unmarshal")
-	}
-
-	if pubX.Cmp(xx) != 0 || pubY.Cmp(yy) != 0 {
-		t.Error("unmarshalCompressed returned different values")
 	}
 }
 
