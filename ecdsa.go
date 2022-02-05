@@ -28,6 +28,16 @@ func hashToInt(hash []byte, ec *Curve) *big.Int {
 	return ret
 }
 
+// fermatInverse calculates the inverse of k in GF(P) using Fermat's method.
+// This has better constant-time properties than Euclid's method (implemented
+// in math/big.Int.ModInverse) although math/big itself isn't strictly
+// constant-time so it's not perfect.
+func fermatInverse(k, N *big.Int) *big.Int {
+	two := big.NewInt(2)
+	nMinus2 := new(big.Int).Sub(N, two)
+	return new(big.Int).Exp(k, nMinus2, N)
+}
+
 // Sign signs a hash (which should be the result of hashing a larger message)
 // using the private key, priv. If the hash is longer than the bit-length of the
 // private key's curve order, the hash will be truncated to that length. It
@@ -39,7 +49,6 @@ func Sign(priv []byte, ec *Curve, hash []byte) (r, s *big.Int) {
 
 	for {
 		k, xp, _, _ := elliptic.GenerateKey(ec, rand.Reader)
-
 		r = new(big.Int).Mod(xp, N)
 		if r.Sign() == 0 {
 			continue
@@ -47,7 +56,7 @@ func Sign(priv []byte, ec *Curve, hash []byte) (r, s *big.Int) {
 
 		z := hashToInt(hash, ec)
 		s = new(big.Int).SetBytes(k)
-		s.ModInverse(s, N)
+		s = fermatInverse(s, N)
 		u := new(big.Int).Mul(r, d)
 		u.Add(u, z)
 		s.Mul(s, u)
@@ -64,15 +73,13 @@ func Verify(Hx, Hy *big.Int, ec *Curve, hash []byte, r, s *big.Int) bool {
 	N := ec.Params().N
 	z := hashToInt(hash, ec)
 
-	w := new(big.Int).ModInverse(s, N)
+	w := fermatInverse(s, N)
 	u1 := new(big.Int).Mul(w, z)
 	u1.Mod(u1, N)
 	u2 := new(big.Int).Mul(w, r)
 	u2.Mod(u2, N)
 
-	x1, y1 := ec.ScalarBaseMult(u1.Bytes())
-	x2, y2 := ec.ScalarMult(Hx, Hy, u2.Bytes())
-	x, _ := ec.Add(x1, y1, x2, y2)
+	x, _ := ec.CombinedMult(Hx, Hy, u1.Bytes(), u2.Bytes())
 	x.Mod(x, N)
 
 	return x.Cmp(r) == 0

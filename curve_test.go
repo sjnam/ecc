@@ -133,19 +133,19 @@ func TestScalarMult(t *testing.T) {
 
 func TestScalarMultiplication(t *testing.T) {
 	c := &Curve{
-		P: big.NewInt(17),
-		A: big.NewInt(2),
-		B: big.NewInt(2),
+		P: big.NewInt(29),
+		A: big.NewInt(4),
+		B: big.NewInt(20),
 	}
 
 	xx, yy := new(big.Int), new(big.Int)
-	xp, yp := big.NewInt(5), big.NewInt(1)
-	i := uint64(1)
-	for ; ; i++ {
+	xp, yp := big.NewInt(8), big.NewInt(10)
+	ord := uint64(1)
+	for ; ; ord++ {
 		xx, yy = c.Add(xx, yy, xp, yp)
-		t.Log(i, xx, yy)
+		t.Logf("%2dP: (%d,%d)\n", ord, xx, yy)
 		if xx.Sign() == 0 && yy.Sign() == 0 {
-			if i != 19 {
+			if ord != 37 {
 				t.Fatal("error")
 			}
 			break
@@ -158,7 +158,7 @@ func TestScalarMultiplication(t *testing.T) {
 	x1, y1 := c.ScalarMult(xp, yp, buf.Bytes())
 
 	buf.Reset()
-	num = num % i
+	num = num % ord
 	_ = binary.Write(buf, binary.BigEndian, num)
 	x2, y2 := c.ScalarMult(xp, yp, buf.Bytes())
 

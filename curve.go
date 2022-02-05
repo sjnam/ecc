@@ -47,7 +47,6 @@ func (ec *Curve) polynomial(x *big.Int) *big.Int {
 	x3.Add(x3, new(big.Int).Mul(x, ec.A)) //x³+AX
 	x3.Add(x3, ec.B)                      //x³+B
 	x3.Mod(x3, ec.P)                      //(x³+B)%P
-
 	return x3
 }
 
@@ -56,7 +55,6 @@ func (ec *Curve) IsOnCurve(x, y *big.Int) bool {
 	// y² = x³ + ax + b
 	y2 := new(big.Int).Mul(y, y) //y²
 	y2.Mod(y2, ec.P)             //y²%P
-
 	return ec.polynomial(x).Cmp(y2) == 0
 }
 
@@ -68,7 +66,6 @@ func zForAffine(x, y *big.Int) *big.Int {
 	if x.Sign() != 0 || y.Sign() != 0 {
 		z.SetInt64(1)
 	}
-
 	return z
 }
 
@@ -88,7 +85,6 @@ func (ec *Curve) affineFromJacobian(x, y, z *big.Int) (
 	zInvSq.Mul(zInvSq, zInv)
 	yOut = new(big.Int).Mul(y, zInvSq)
 	yOut.Mod(yOut, ec.P)
-
 	return
 }
 
@@ -96,7 +92,6 @@ func (ec *Curve) affineFromJacobian(x, y, z *big.Int) (
 func (ec *Curve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 	z1 := zForAffine(x1, y1)
 	z2 := zForAffine(x2, y2)
-
 	return ec.affineFromJacobian(ec.addJacobian(x1, y1, z1, x2, y2, z2))
 }
 
@@ -282,4 +277,14 @@ func (ec *Curve) ScalarMult(Bx, By *big.Int, k []byte) (
 // an integer in big-endian form.
 func (ec *Curve) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
 	return ec.ScalarMult(ec.Gx, ec.Gy, k)
+}
+
+// CombinedMult implements fast multiplication
+// S1*g + S2*p (g - generator, p - arbitrary point)
+func (c *Curve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (
+	x, y *big.Int,
+) {
+	x1, y1 := c.ScalarBaseMult(baseScalar)
+	x2, y2 := c.ScalarMult(bigX, bigY, scalar)
+	return c.Add(x1, y1, x2, y2)
 }
