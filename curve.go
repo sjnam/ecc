@@ -75,10 +75,12 @@ func zForAffine(x, y *big.Int) *big.Int {
 // affineFromJacobian reverses the Jacobian transform. See the comment at the
 // top of the file.
 func (ec *EllipticCurve) affineFromJacobian(x, y, z *big.Int) (
-	xOut, yOut *big.Int) {
+	xOut, yOut *big.Int,
+) {
 	if z.Sign() == 0 {
 		return new(big.Int), new(big.Int)
 	}
+
 	zInv := new(big.Int).ModInverse(z, ec.P)
 	zInvSq := new(big.Int).Mul(zInv, zInv)
 	xOut = new(big.Int).Mul(x, zInvSq)
@@ -203,11 +205,12 @@ func (ec *EllipticCurve) doubleJacobian(x, y, z *big.Int) (
 	yyyy.Mod(yyyy, ec.P)
 	zz := new(big.Int).Mul(z, z) //Z1²
 	zz.Mod(zz, ec.P)
+	zzzz := new(big.Int).Mul(zz, zz) //ZZ²
+	zzzz.Mod(zzzz, ec.P)
 
 	s := new(big.Int).Add(x, yy) //X1+YY
 	s.Mul(s, s)                  //(X1+YY)²
-	s.Mod(s, ec.P)
-	s.Sub(s, xx) //(X1+B)²-XX
+	s.Sub(s, xx)                 //(X1+B)²-XX
 	if s.Sign() == -1 {
 		s.Add(s, ec.P)
 	}
@@ -218,9 +221,9 @@ func (ec *EllipticCurve) doubleJacobian(x, y, z *big.Int) (
 	s.Lsh(s, 1) //2*((X1+B)²-XX-YYYY)
 	s.Mod(s, ec.P)
 
-	m := new(big.Int).Lsh(xx, 1)                               //2*XX
-	m.Add(m, xx)                                               //3*XX
-	m.Add(m, new(big.Int).Mul(ec.A, new(big.Int).Mul(zz, zz))) //3*XX+A*ZZ²
+	m := new(big.Int).Lsh(xx, 1)   //2*XX
+	m.Add(m, xx)                   //3*XX
+	m.Add(m, zzzz.Mul(ec.A, zzzz)) //3*XX+A*ZZ²
 	m.Mod(m, ec.P)
 
 	t := new(big.Int).Mul(m, m)      //M²
