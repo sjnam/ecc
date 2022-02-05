@@ -8,11 +8,11 @@ import (
 	"testing"
 )
 
-var simple, secp256k1 *EllipticCurve
+var simple, secp256k1 *Curve
 
 func init() {
 	// simple curve
-	simple = &EllipticCurve{
+	simple = &Curve{
 		P: big.NewInt(97),
 		A: big.NewInt(2),
 		B: big.NewInt(3),
@@ -26,7 +26,7 @@ func init() {
 	n, _ := new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 0)
 	h := big.NewInt(1)
 
-	secp256k1 = &EllipticCurve{
+	secp256k1 = &Curve{
 		P:       p,
 		A:       a,
 		B:       b,
@@ -132,7 +132,7 @@ func TestScalarMult(t *testing.T) {
 }
 
 func TestScalarMultiplication(t *testing.T) {
-	c := &EllipticCurve{
+	c := &Curve{
 		P: big.NewInt(17),
 		A: big.NewInt(2),
 		B: big.NewInt(2),
