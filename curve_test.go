@@ -1,8 +1,10 @@
 package ecc
 
 import (
+	"bytes"
 	"crypto/elliptic"
 	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"math/big"
 	"testing"
@@ -140,14 +142,30 @@ func TestScalarMultiplication(t *testing.T) {
 
 	xx, yy := new(big.Int), new(big.Int)
 	xp, yp := big.NewInt(5), big.NewInt(1)
-	for i := 1; ; i++ {
+	i := uint64(1)
+	for ; ; i++ {
 		xx, yy = c.Add(xx, yy, xp, yp)
+		t.Log(i, xx, yy)
 		if xx.Sign() == 0 && yy.Sign() == 0 {
 			if i != 19 {
 				t.Fatal("error")
 			}
 			break
 		}
+	}
+
+	buf := new(bytes.Buffer)
+	var num uint64 = 6837283728876
+	_ = binary.Write(buf, binary.BigEndian, num)
+	x1, y1 := c.ScalarMult(xp, yp, buf.Bytes())
+
+	buf.Reset()
+	num = num % i
+	_ = binary.Write(buf, binary.BigEndian, num)
+	x2, y2 := c.ScalarMult(xp, yp, buf.Bytes())
+
+	if x1.Cmp(x2) != 0 || y1.Cmp(y2) != 0 {
+		t.Fatal("error")
 	}
 }
 
