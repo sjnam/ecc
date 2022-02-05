@@ -1,6 +1,8 @@
 package ecc
 
 import (
+	"crypto/elliptic"
+	"crypto/rand"
 	"fmt"
 	"math/big"
 	"testing"
@@ -126,6 +128,22 @@ func TestScalarMult(t *testing.T) {
 			t.Errorf("ScalarMult() == (%v,%v), want (%v, %v)",
 				rx, ry, c.wantX, c.wantY)
 		}
+	}
+}
+
+func TestMarshalCompressed(t *testing.T) {
+	_, pubX, pubY, err := elliptic.GenerateKey(secp256k1, rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	serialized := secp256k1.MarshalCompressed(pubX, pubY)
+	xx, yy := secp256k1.UnmarshalCompressed(serialized)
+	if xx == nil {
+		t.Fatal("fail to unmarshal")
+	}
+
+	if pubX.Cmp(xx) != 0 || pubY.Cmp(yy) != 0 {
+		t.Error("unmarshalCompressed returned different values")
 	}
 }
 
