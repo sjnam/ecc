@@ -11,7 +11,7 @@ import (
 var curve ECurve
 
 func init() {
-	curve.CurveParams = &elliptic.CurveParams{}
+	curve.CurveParams = &elliptic.CurveParams{Name: "Simple"}
 	curve.P = big.NewInt(97)
 	curve.A = big.NewInt(2)
 	curve.B = big.NewInt(3)

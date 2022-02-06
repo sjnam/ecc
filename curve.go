@@ -266,8 +266,8 @@ func (ec ECurve) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
 
 // CombinedMult implements fast multiplication
 // S1*g + S2*p (g - generator, p - arbitrary point)
-func (ec ECurve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
-	x1, y1 := ec.ScalarBaseMult(baseScalar)
-	x2, y2 := ec.ScalarMult(bigX, bigY, scalar)
-	return ec.Add(x1, y1, x2, y2)
+func CombinedMult(c elliptic.Curve, bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
+	x1, y1 := c.ScalarBaseMult(baseScalar)
+	x2, y2 := c.ScalarMult(bigX, bigY, scalar)
+	return c.Add(x1, y1, x2, y2)
 }
