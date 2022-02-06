@@ -9,42 +9,39 @@ import (
 	"testing"
 )
 
-var secp256k1 *Curve
+var secp256k1 *ECurve
 
 func init() {
-	// secp256k1 curve
-	p, _ := new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F", 0)
-	a, b := big.NewInt(0), big.NewInt(7)
-	gx, _ := new(big.Int).SetString("0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798", 0)
-	gy, _ := new(big.Int).SetString("0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8", 0)
-	n, _ := new(big.Int).SetString("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", 0)
-	h := big.NewInt(1)
+	P, _ := new(big.Int).SetString("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f", 0)
+	Gx, _ := new(big.Int).SetString("0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798", 0)
+	Gy, _ := new(big.Int).SetString("0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8", 0)
+	N, _ := new(big.Int).SetString("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 0)
 
-	secp256k1 = &Curve{
-		P:       p,
-		A:       a,
-		B:       b,
-		Gx:      gx,
-		Gy:      gy,
-		N:       n,
-		H:       h,
+	secp256k1 = &ECurve{
+		P:       P,
+		A:       big.NewInt(0),
+		B:       big.NewInt(7),
+		Gx:      Gx,
+		Gy:      Gy,
+		N:       N,
+		H:       big.NewInt(1),
 		BitSize: 256,
 	}
 }
 
 func TestECDH(t *testing.T) {
-	aliPriv, aliPubX, aliPubY, _ := elliptic.GenerateKey(secp256k1, rand.Reader)
-	bobPriv, bobPubX, bobPubY, _ := elliptic.GenerateKey(secp256k1, rand.Reader)
+	aPriv, aPubX, aPubY, _ := elliptic.GenerateKey(secp256k1, rand.Reader)
+	bPriv, bPubX, bPubY, _ := elliptic.GenerateKey(secp256k1, rand.Reader)
 
-	ssx1, ssy1 := secp256k1.ScalarMult(aliPubX, aliPubY, bobPriv)
-	ssx2, ssy2 := secp256k1.ScalarMult(bobPubX, bobPubY, aliPriv)
+	ssx1, ssy1 := secp256k1.ScalarMult(aPubX, aPubY, bPriv)
+	ssx2, ssy2 := secp256k1.ScalarMult(bPubX, bPubY, aPriv)
 
-	aliSharedSecret := elliptic.Marshal(secp256k1, ssx1, ssy1)
-	bobSharedSecret := elliptic.Marshal(secp256k1, ssx2, ssy2)
+	aSharedSecret := elliptic.Marshal(secp256k1, ssx1, ssy1)
+	bSharedSecret := elliptic.Marshal(secp256k1, ssx2, ssy2)
 
-	if !bytes.Equal(aliSharedSecret, bobSharedSecret) {
+	if !bytes.Equal(aSharedSecret, bSharedSecret) {
 		t.Errorf("sharedSecret1: 0x%x\nsharedSecret2: 0x%x",
-			aliSharedSecret, bobSharedSecret)
+			aSharedSecret, bSharedSecret)
 	}
 }
 

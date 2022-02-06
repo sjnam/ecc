@@ -7,11 +7,10 @@ import (
 	"testing"
 )
 
-var simple *Curve
+var curve *ECurve
 
 func init() {
-	// simple curve
-	simple = &Curve{
+	curve = &ECurve{
 		P: big.NewInt(97),
 		A: big.NewInt(2),
 		B: big.NewInt(3),
@@ -34,7 +33,7 @@ func TestAdd(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		rx, ry := simple.Add(big.NewInt(c.px), big.NewInt(c.py),
+		rx, ry := curve.Add(big.NewInt(c.px), big.NewInt(c.py),
 			big.NewInt(c.qx), big.NewInt(c.qy))
 		if c.wantX.Cmp(rx) != 0 || c.wantY.Cmp(ry) != 0 {
 			t.Errorf("Add() == (%v,%v), want (%v, %v)", rx, ry, c.wantX, c.wantY)
@@ -62,7 +61,7 @@ func TestDouble(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		rx, ry := simple.Double(big.NewInt(c.px), big.NewInt(c.py))
+		rx, ry := curve.Double(big.NewInt(c.px), big.NewInt(c.py))
 		if c.wantX.Cmp(rx) != 0 || c.wantY.Cmp(ry) != 0 {
 			t.Errorf("Double() == (%v,%v), want (%v, %v)",
 				rx, ry, c.wantX, c.wantY)
@@ -102,7 +101,7 @@ func TestScalarMult(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		rx, ry := simple.ScalarMult(big.NewInt(c.px), big.NewInt(c.py),
+		rx, ry := curve.ScalarMult(big.NewInt(c.px), big.NewInt(c.py),
 			big.NewInt(c.k).Bytes())
 		if c.wantX.Cmp(rx) != 0 || c.wantY.Cmp(ry) != 0 {
 			t.Errorf("ScalarMult() == (%v,%v), want (%v, %v)",
@@ -112,7 +111,7 @@ func TestScalarMult(t *testing.T) {
 }
 
 func TestScalarMultiplication(t *testing.T) {
-	c := &Curve{
+	c := &ECurve{
 		P: big.NewInt(29),
 		A: big.NewInt(4),
 		B: big.NewInt(20),
