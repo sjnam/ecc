@@ -21,7 +21,6 @@ import (
 type ECurve struct {
 	*elliptic.CurveParams
 	A *big.Int // the constant of the ECurve equation
-	N *big.Int // the order of the subgroup
 	H *big.Int // the cofactor of the subgroup
 }
 
