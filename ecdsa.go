@@ -43,7 +43,7 @@ func fermatInverse(k, N *big.Int) *big.Int {
 // private key's curve order, the hash will be truncated to that length. It
 // returns the signature as a pair of integers. The security of the private key
 // depends on the entropy of rand.
-func Sign(priv []byte, ec elliptic.Curve, hash []byte) (r, s *big.Int) {
+func Sign(priv []byte, ec ECurve, hash []byte) (r, s *big.Int) {
 	N := ec.Params().N
 	d := new(big.Int).SetBytes(priv)
 
@@ -69,7 +69,7 @@ func Sign(priv []byte, ec elliptic.Curve, hash []byte) (r, s *big.Int) {
 
 // Verify verifies the signature in r, s of hash using the public key, pub. Its
 // return value records whether the signature is valid.
-func Verify(Hx, Hy *big.Int, ec elliptic.Curve, hash []byte, r, s *big.Int) bool {
+func Verify(Hx, Hy *big.Int, ec ECurve, hash []byte, r, s *big.Int) bool {
 	N := ec.Params().N
 	z := hashToInt(hash, ec)
 
@@ -79,7 +79,7 @@ func Verify(Hx, Hy *big.Int, ec elliptic.Curve, hash []byte, r, s *big.Int) bool
 	u2 := new(big.Int).Mul(w, r)
 	u2.Mod(u2, N)
 
-	x, _ := CombinedMult(ec, Hx, Hy, u1.Bytes(), u2.Bytes())
+	x, _ := ec.CombinedMult(Hx, Hy, u1.Bytes(), u2.Bytes())
 	x.Mod(x, N)
 
 	return x.Cmp(r) == 0

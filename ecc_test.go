@@ -9,7 +9,6 @@ import (
 	"testing"
 )
 
-var curves []elliptic.Curve
 var secp256k1, p224, p256, p521 ECurve
 
 func init() {
@@ -59,11 +58,10 @@ func init() {
 	p256.H = big.NewInt(1)
 	p256.BitSize = 256
 	p256.CurveParams.N = p256.N.Set(p256.N)
-
-	curves = []elliptic.Curve{secp256k1, p521, p224, p256}
 }
 
 func TestECDH(t *testing.T) {
+	curves := []elliptic.Curve{secp256k1, p521, p224, p256}
 	for _, c := range curves {
 		aPriv, aPubX, aPubY, _ := elliptic.GenerateKey(c, rand.Reader)
 		bPriv, bPubX, bPubY, _ := elliptic.GenerateKey(c, rand.Reader)
@@ -79,6 +77,7 @@ func TestECDH(t *testing.T) {
 }
 
 func TestECDSA(t *testing.T) {
+	curves := []ECurve{secp256k1, p521, p224, p256}
 	for _, c := range curves {
 		priv, Hx, Hy, _ := elliptic.GenerateKey(c, rand.Reader)
 		h := sha512.Sum512([]byte("Hello, world."))
