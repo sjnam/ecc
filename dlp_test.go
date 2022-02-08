@@ -7,26 +7,23 @@ import (
 )
 
 func TestShanks(t *testing.T) {
-	curve.CurveParams = &elliptic.CurveParams{Name: "test"}
-	curve.P = big.NewInt(29)
-	curve.A = big.NewInt(4)
-	curve.B = big.NewInt(20)
-	curve.Gx = big.NewInt(8)
-	curve.Gy = big.NewInt(10)
-	curve.N = big.NewInt(37)
-	curve.BitSize = 6
+	curve.CurveParams = &elliptic.CurveParams{Name: "DLP-Test"}
+	curve.P = big.NewInt(7919)
+	curve.A = big.NewInt(1001)
+	curve.B = big.NewInt(75)
+	curve.Gx = big.NewInt(4023)
+	curve.Gy = big.NewInt(6036)
+	curve.N = big.NewInt(7889)
+	curve.BitSize = 16
 
 	cases := []struct {
 		x, y, k int64
 	}{
-		{2, 6, 7},
-		{6, 17, 4},
-		{19, 16, 17},
-		{5, 22, 11},
-		{24, 22, 24},
-		{13, 23, 29},
-		{16, 27, 34},
-		{0, 7, 35},
+		{1075, 54, 1275},
+		{4135, 3169, 4334},
+		{2599, 759, 3430},
+		{7285, 7905, 4508},
+		{758, 574, 6864},
 	}
 
 	for _, c := range cases {

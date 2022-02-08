@@ -113,18 +113,20 @@ func TestScalarMult(t *testing.T) {
 func TestScalarMultiplication(t *testing.T) {
 	var c ECurve
 	c.CurveParams = &elliptic.CurveParams{}
-	c.P = big.NewInt(29)
-	c.A = big.NewInt(4)
-	c.B = big.NewInt(20)
+	c.P = big.NewInt(7919)
+	c.A = big.NewInt(1001)
+	c.B = big.NewInt(75)
+	c.N = big.NewInt(7889)
 
 	xx, yy := new(big.Int), new(big.Int)
-	xp, yp := big.NewInt(8), big.NewInt(10)
+	xp, yp := big.NewInt(4023), big.NewInt(6036)
+
 	ord := uint64(1)
 	for ; ; ord++ {
 		xx, yy = c.Add(xx, yy, xp, yp)
 		t.Logf("%2dP: (%d,%d)\n", ord, xx, yy)
 		if xx.Sign() == 0 && yy.Sign() == 0 {
-			if ord != 37 {
+			if ord != c.N.Uint64() {
 				t.Fatal("error")
 			}
 			break
