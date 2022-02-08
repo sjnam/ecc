@@ -6,31 +6,34 @@ import (
 )
 
 // Shanks' Baby-Step Giant-Step algorithm for ECDLP
-func Shanks(curve ECurve, hx, hy *big.Int) *big.Int {
-	htab := make(map[string]*big.Int)
+func Shanks(curve ECurve, hx, hy *big.Int) int64 {
+	htab := make(map[string]int64)
 
-	s := new(big.Int).Sqrt(curve.N)
+	ss := new(big.Int).Sqrt(curve.N)
+	s := ss.Int64()
 	vx, vy := new(big.Int), new(big.Int)
-	mx, my := curve.ScalarBaseMult(s.Bytes())
+	mx, my := curve.ScalarBaseMult(ss.Bytes())
 
-	for j := new(big.Int); j.Cmp(curve.N) <= 0; j.Add(j, s) {
+	// Giant step
+	for j := int64(0); j <= curve.N.Int64(); j += s {
 		k := elliptic.Marshal(curve, vx, vy)
-		htab[string(k)] = new(big.Int).Div(j, s)
+		htab[string(k)] = j / s
 		vx, vy = curve.Add(vx, vy, mx, my)
 	}
 
 	vx, vy = vx.Set(hx), vy.Set(hy)
 	gix, giy := new(big.Int).Set(curve.Gx), new(big.Int).Neg(curve.Gy)
-	one := new(big.Int).SetInt64(1)
-	for i := new(big.Int); i.Cmp(s) <= 0; i.Add(i, one) {
+
+	// Baby step
+	for i := int64(0); i <= s; i++ {
 		k := elliptic.Marshal(curve, vx, vy)
 		if m, ok := htab[string(k)]; ok {
-			return i.Add(i, new(big.Int).Mul(m, s))
+			return i + m*s
 		}
 		vx, vy = curve.Add(vx, vy, gix, giy)
 	}
 
-	return nil
+	return -1
 }
 
 // PollardRho algorithm for the ECDLP
