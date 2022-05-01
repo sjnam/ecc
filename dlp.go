@@ -39,14 +39,7 @@ func Shanks(curve ECurve, hx, hy *big.Int) int64 {
 }
 
 // PollardRho algorithm for the ECDLP
-type ab struct {
-	ai *big.Int
-	bi *big.Int
-}
-
-// PollardRho algorithm for the ECDLP
 func PollardRho(c ECurve, hx, hy *big.Int) int64 {
-	htab := make(map[string]ab)
 	z := new(big.Int).Div(c.P, big.NewInt(3))
 	zz := new(big.Int).Add(z, z)
 	f := func(x, y, a, b *big.Int) (*big.Int, *big.Int, *big.Int, *big.Int) {
@@ -67,29 +60,37 @@ func PollardRho(c ECurve, hx, hy *big.Int) int64 {
 	}
 
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
-	a2, b2 := new(big.Int).Rand(rnd, c.N), new(big.Int).Rand(rnd, c.N)
-	aPx, aPy := c.ScalarBaseMult(a2.Bytes())
-	bQx, bQy := c.ScalarMult(hx, hy, b2.Bytes())
-	rx, ry := c.Add(aPx, aPy, bQx, bQy)
-	htab[string(elliptic.Marshal(c, rx, ry))] =
-		ab{new(big.Int).Set(a2), new(big.Int).Set(b2)}
+	for j := 0; j < 3; j++ {
+		a1, b1 := new(big.Int).Rand(rnd, c.N), new(big.Int).Rand(rnd, c.N)
+		aPx1, aPy1 := c.ScalarBaseMult(a1.Bytes())
+		bQx1, bQy1 := c.ScalarMult(hx, hy, b1.Bytes())
+		rx1, ry1 := c.Add(aPx1, aPy1, bQx1, bQy1)
 
-	for {
-		rx, ry, a2, b2 = f(rx, ry, a2, b2)
-		k := string(elliptic.Marshal(c, rx, ry))
-		if m, ok := htab[k]; ok {
-			a := m.ai
-			b := m.bi
-			a.Sub(a, a2)
-			a.Mod(a, c.N)
-			b2.Sub(b2, b)
-			b2.Mod(b2, c.N)
-			b2.ModInverse(b2, c.N)
-			a.Mul(a, b2)
-			a.Mod(a, c.N)
-			return a.Int64()
-		} else {
-			htab[k] = ab{new(big.Int).Set(a2), new(big.Int).Set(b2)}
+		a2, b2 := new(big.Int).Rand(rnd, c.N), new(big.Int).Rand(rnd, c.N)
+		aPx2, aPy2 := c.ScalarBaseMult(a2.Bytes())
+		bQx2, bQy2 := c.ScalarMult(hx, hy, b2.Bytes())
+		rx2, ry2 := c.Add(aPx2, aPy2, bQx2, bQy2)
+
+		for k := 0; k < int(c.N.Int64()); k++ {
+			rx1, ry1, a1, b1 = f(rx1, ry1, a1, b1)
+			rx2, ry2, a2, b2 = f(rx2, ry2, a2, b2)
+			rx2, ry2, a2, b2 = f(rx2, ry2, a2, b2)
+
+			if rx1.Cmp(rx2) == 0 && ry1.Cmp(ry2) == 0 {
+				if b1.Cmp(b2) == 0 {
+					break
+				}
+				a1.Sub(a1, a2)
+				a1.Mod(a1, c.N)
+				b2.Sub(b2, b1)
+				b2.Mod(b2, c.N)
+				b2.ModInverse(b2, c.N)
+				a1.Mul(a1, b2)
+				a1.Mod(a1, c.N)
+				return a1.Int64()
+			}
 		}
 	}
+
+	return 0
 }

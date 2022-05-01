@@ -37,7 +37,6 @@ func TestShanks(t *testing.T) {
 	for i := int64(1); i < curve.N.Int64(); i++ {
 		xx, yy = curve.Add(xx, yy, curve.Gx, curve.Gy)
 		k := Shanks(curve, xx, yy)
-		//k := PollardRho(curve, xx, yy)
 		if k != i {
 			t.Errorf("(%d,%d) want: %d, got: %d", xx, yy, i, k)
 		}
