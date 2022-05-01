@@ -33,6 +33,13 @@ func TestShanks(t *testing.T) {
 		}
 	}
 
+	for _, c := range cases {
+		k := PollardRho(curve, big.NewInt(c.x), big.NewInt(c.y))
+		if k == -1 || k != c.k {
+			t.Errorf("(%d,%d) want: %d, got: %d", c.x, c.y, c.k, k)
+		}
+	}
+
 	xx, yy := new(big.Int), new(big.Int)
 	for i := int64(1); i < curve.N.Int64(); i++ {
 		xx, yy = curve.Add(xx, yy, curve.Gx, curve.Gy)

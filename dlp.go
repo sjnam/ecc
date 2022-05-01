@@ -40,14 +40,13 @@ func Shanks(curve ECurve, hx, hy *big.Int) int64 {
 
 // PollardRho algorithm for the ECDLP
 func PollardRho(c ECurve, hx, hy *big.Int) int64 {
-	z := new(big.Int).Div(c.P, big.NewInt(3))
-	zz := new(big.Int).Add(z, z)
 	f := func(x, y, a, b *big.Int) (*big.Int, *big.Int, *big.Int, *big.Int) {
-		if x.Cmp(z) <= 0 { // S1
+		k := new(big.Int).Mod(x, big.NewInt(3)).Int64()
+		if k == 0 { // S1
 			rx, ry := c.Add(c.Gx, c.Gy, x, y)
 			a.Add(a, big.NewInt(1))
 			return rx, ry, a.Mod(a, c.N), b
-		} else if x.Cmp(zz) <= 0 { // S2
+		} else if k == 1 { // S2
 			rx, ry := c.ScalarMult(x, y, big.NewInt(2).Bytes())
 			a.Add(a, a)
 			b.Add(b, b)
@@ -60,26 +59,28 @@ func PollardRho(c ECurve, hx, hy *big.Int) int64 {
 	}
 
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
-	for j := 0; j < 3; j++ {
-		a1, b1 := new(big.Int).Rand(rnd, c.N), new(big.Int).Rand(rnd, c.N)
-		aPx1, aPy1 := c.ScalarBaseMult(a1.Bytes())
-		bQx1, bQy1 := c.ScalarMult(hx, hy, b1.Bytes())
-		rx1, ry1 := c.Add(aPx1, aPy1, bQx1, bQy1)
+	setup := func() (*big.Int, *big.Int, *big.Int, *big.Int) {
+		a, b := new(big.Int).Rand(rnd, c.N), new(big.Int).Rand(rnd, c.N)
+		aPx, aPy := c.ScalarBaseMult(a.Bytes())
+		bQx, bQy := c.ScalarMult(hx, hy, b.Bytes())
+		rx, ry := c.Add(aPx, aPy, bQx, bQy)
+		return rx, ry, a, b
+	}
 
-		a2, b2 := new(big.Int).Rand(rnd, c.N), new(big.Int).Rand(rnd, c.N)
-		aPx2, aPy2 := c.ScalarBaseMult(a2.Bytes())
-		bQx2, bQy2 := c.ScalarMult(hx, hy, b2.Bytes())
-		rx2, ry2 := c.Add(aPx2, aPy2, bQx2, bQy2)
+	for j := 0; j < 3; j++ {
+		x1, y1, a1, b1 := setup()
+		x2, y2, a2, b2 := setup()
 
 		for k := 0; k < int(c.N.Int64()); k++ {
-			rx1, ry1, a1, b1 = f(rx1, ry1, a1, b1)
-			rx2, ry2, a2, b2 = f(rx2, ry2, a2, b2)
-			rx2, ry2, a2, b2 = f(rx2, ry2, a2, b2)
+			x1, y1, a1, b1 = f(x1, y1, a1, b1)
+			x2, y2, a2, b2 = f(x2, y2, a2, b2)
+			x2, y2, a2, b2 = f(x2, y2, a2, b2)
 
-			if rx1.Cmp(rx2) == 0 && ry1.Cmp(ry2) == 0 {
+			if x1.Cmp(x2) == 0 && y1.Cmp(y2) == 0 {
 				if b1.Cmp(b2) == 0 {
 					break
 				}
+
 				a1.Sub(a1, a2)
 				a1.Mod(a1, c.N)
 				b2.Sub(b2, b1)
@@ -92,5 +93,5 @@ func PollardRho(c ECurve, hx, hy *big.Int) int64 {
 		}
 	}
 
-	return 0
+	return -1
 }
