@@ -39,39 +39,39 @@ func Shanks(curve ECurve, hx, hy *big.Int) int64 {
 }
 
 // PollardRho algorithm for the ECDLP
-func PollardRho(c ECurve, hx, hy *big.Int) int64 {
+func PollardRho(c ECurve, hx, hy *big.Int) *big.Int {
 	f := func(x, y, a, b *big.Int) (*big.Int, *big.Int, *big.Int, *big.Int) {
 		k := new(big.Int).Mod(x, big.NewInt(3)).Int64()
 		if k == 0 { // S1
-			rx, ry := c.Add(c.Gx, c.Gy, x, y)
+			x, y = c.Add(c.Gx, c.Gy, x, y)
 			a.Add(a, big.NewInt(1))
-			return rx, ry, a.Mod(a, c.N), b
+			return x, y, a.Mod(a, c.N), b
 		} else if k == 1 { // S2
-			rx, ry := c.ScalarMult(x, y, big.NewInt(2).Bytes())
+			x, y = c.ScalarMult(x, y, big.NewInt(2).Bytes())
 			a.Add(a, a)
 			b.Add(b, b)
-			return rx, ry, a.Mod(a, c.N), b.Mod(b, c.N)
+			return x, y, a.Mod(a, c.N), b.Mod(b, c.N)
 		} else { // S3
-			rx, ry := c.Add(hx, hy, x, y)
+			x, y = c.Add(hx, hy, x, y)
 			b.Add(b, big.NewInt(1))
-			return rx, ry, a, b.Mod(b, c.N)
+			return x, y, a, b.Mod(b, c.N)
 		}
 	}
 
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	setup := func() (*big.Int, *big.Int, *big.Int, *big.Int) {
 		a, b := new(big.Int).Rand(rnd, c.N), new(big.Int).Rand(rnd, c.N)
-		aPx, aPy := c.ScalarBaseMult(a.Bytes())
-		bQx, bQy := c.ScalarMult(hx, hy, b.Bytes())
-		rx, ry := c.Add(aPx, aPy, bQx, bQy)
-		return rx, ry, a, b
+		px, py := c.ScalarBaseMult(a.Bytes())
+		qx, qy := c.ScalarMult(hx, hy, b.Bytes())
+		x, y := c.Add(px, py, qx, qy)
+		return x, y, a, b
 	}
 
 	for j := 0; j < 3; j++ {
 		x1, y1, a1, b1 := setup()
 		x2, y2, a2, b2 := setup()
 
-		for k := 0; k < int(c.N.Int64()); k++ {
+		for { // k := 0; k < int(c.N.Int64()); k++ {
 			x1, y1, a1, b1 = f(x1, y1, a1, b1)
 			x2, y2, a2, b2 = f(x2, y2, a2, b2)
 			x2, y2, a2, b2 = f(x2, y2, a2, b2)
@@ -88,10 +88,10 @@ func PollardRho(c ECurve, hx, hy *big.Int) int64 {
 				b2.ModInverse(b2, c.N)
 				a1.Mul(a1, b2)
 				a1.Mod(a1, c.N)
-				return a1.Int64()
+				return a1
 			}
 		}
 	}
 
-	return -1
+	return big.NewInt(-1)
 }
