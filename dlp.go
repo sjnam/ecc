@@ -42,16 +42,16 @@ func Shanks(curve ECurve, hx, hy *big.Int) int64 {
 func PollardRho(c ECurve, hx, hy *big.Int) *big.Int {
 	f := func(x, y, a, b *big.Int) (*big.Int, *big.Int, *big.Int, *big.Int) {
 		k := new(big.Int).Mod(x, big.NewInt(3)).Int64()
-		if k == 0 { // S1
+		if k == 0 { // S1: P+R, a+1, b
 			x, y = c.Add(c.Gx, c.Gy, x, y)
 			a.Add(a, big.NewInt(1))
 			return x, y, a.Mod(a, c.N), b
-		} else if k == 1 { // S2
+		} else if k == 1 { // S2: 2R, 2a, 2b
 			x, y = c.ScalarMult(x, y, big.NewInt(2).Bytes())
 			a.Add(a, a)
 			b.Add(b, b)
 			return x, y, a.Mod(a, c.N), b.Mod(b, c.N)
-		} else { // S3
+		} else { // S3: Q+R, a, b+1
 			x, y = c.Add(hx, hy, x, y)
 			b.Add(b, big.NewInt(1))
 			return x, y, a, b.Mod(b, c.N)
@@ -71,7 +71,7 @@ func PollardRho(c ECurve, hx, hy *big.Int) *big.Int {
 		x1, y1, a1, b1 := setup()
 		x2, y2, a2, b2 := setup()
 
-		for { // k := 0; k < int(c.N.Int64()); k++ {
+		for k := 0; k < int(c.N.Int64()); k++ {
 			x1, y1, a1, b1 = f(x1, y1, a1, b1)
 			x2, y2, a2, b2 = f(x2, y2, a2, b2)
 			x2, y2, a2, b2 = f(x2, y2, a2, b2)
