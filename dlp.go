@@ -40,7 +40,7 @@ func Shanks(c ECurve, px, py, hx, hy *big.Int) int64 {
 }
 
 // PollardRho algorithm for the ECDLP
-func PollardRho(c ECurve, px, py, hx, hy *big.Int) *big.Int {
+func PollardRho(c ECurve, px, py, hx, hy *big.Int) int64 {
 	c.Gx, c.Gy = px, py
 
 	f := func(x, y, a, b *big.Int) (*big.Int, *big.Int, *big.Int, *big.Int) {
@@ -91,10 +91,11 @@ func PollardRho(c ECurve, px, py, hx, hy *big.Int) *big.Int {
 				b2.ModInverse(b2, c.N)
 				a1.Mul(a1, b2)
 				a1.Mod(a1, c.N)
-				return a1
+
+				return a1.Int64()
 			}
 		}
 	}
 
-	return big.NewInt(-1)
+	return -1
 }
