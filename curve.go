@@ -31,10 +31,10 @@ func (ec ECurve) Params() *elliptic.CurveParams {
 
 // polynomial returns y² = x³ + ax + b.
 func (ec ECurve) polynomial(x *big.Int) *big.Int {
-	x3 := new(big.Int).Mul(x, x)          //x²
-	x3.Mul(x3, x)                         //x³
-	x3.Add(x3, new(big.Int).Mul(x, ec.A)) //x³+AX
-	x3.Add(x3, ec.B)                      //x³+B
+	x3 := new(big.Int).Mul(x, x)          // x²
+	x3.Mul(x3, x)                         // x³
+	x3.Add(x3, new(big.Int).Mul(x, ec.A)) // x³+AX
+	x3.Add(x3, ec.B)                      // x³+B
 	x3.Mod(x3, ec.P)                      //(x³+B)%P
 	return x3
 }
@@ -42,8 +42,8 @@ func (ec ECurve) polynomial(x *big.Int) *big.Int {
 // IsOnCurve reports whether the given (x,y) lies on the curve.
 func (ec ECurve) IsOnCurve(x, y *big.Int) bool {
 	// y² = x³ + ax + b
-	y2 := new(big.Int).Mul(y, y) //y²
-	y2.Mod(y2, ec.P)             //y²%P
+	y2 := new(big.Int).Mul(y, y) // y²
+	y2.Mod(y2, ec.P)             // y²%P
 	return ec.polynomial(x).Cmp(y2) == 0
 }
 
@@ -178,18 +178,18 @@ func (ec ECurve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 // returns its double, also in Jacobian form.
 func (ec ECurve) doubleJacobian(x, y, z *big.Int) (x3, y3, z3 *big.Int) {
 	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
-	xx := new(big.Int).Mul(x, x) //X1²
+	xx := new(big.Int).Mul(x, x) // X1²
 	xx.Mod(xx, ec.P)
-	yy := new(big.Int).Mul(y, y) //Y1²
+	yy := new(big.Int).Mul(y, y) // Y1²
 	yy.Mod(yy, ec.P)
-	yyyy := new(big.Int).Mul(yy, yy) //YY²
+	yyyy := new(big.Int).Mul(yy, yy) // YY²
 	yyyy.Mod(yyyy, ec.P)
-	zz := new(big.Int).Mul(z, z) //Z1²
+	zz := new(big.Int).Mul(z, z) // Z1²
 	zz.Mod(zz, ec.P)
-	zzzz := new(big.Int).Mul(zz, zz) //ZZ²
+	zzzz := new(big.Int).Mul(zz, zz) // ZZ²
 	zzzz.Mod(zzzz, ec.P)
 
-	s := new(big.Int).Add(x, yy) //X1+YY
+	s := new(big.Int).Add(x, yy) // X1+YY
 	s.Mul(s, s)                  //(X1+YY)²
 	s.Sub(s, xx)                 //(X1+B)²-XX
 	if s.Sign() == -1 {
@@ -199,33 +199,33 @@ func (ec ECurve) doubleJacobian(x, y, z *big.Int) (x3, y3, z3 *big.Int) {
 	if s.Sign() == -1 {
 		s.Add(s, ec.P)
 	}
-	s.Lsh(s, 1) //2*((X1+B)²-XX-YYYY)
+	s.Lsh(s, 1) // 2*((X1+B)²-XX-YYYY)
 	s.Mod(s, ec.P)
 
-	m := new(big.Int).Lsh(xx, 1)   //2*XX
-	m.Add(m, xx)                   //3*XX
-	m.Add(m, zzzz.Mul(ec.A, zzzz)) //3*XX+A*ZZ²
+	m := new(big.Int).Lsh(xx, 1)   // 2*XX
+	m.Add(m, xx)                   // 3*XX
+	m.Add(m, zzzz.Mul(ec.A, zzzz)) // 3*XX+A*ZZ²
 	m.Mod(m, ec.P)
 
-	t := new(big.Int).Mul(m, m)      //M²
-	t.Sub(t, new(big.Int).Lsh(s, 1)) //M²-2*S
+	t := new(big.Int).Mul(m, m)      // M²
+	t.Sub(t, new(big.Int).Lsh(s, 1)) // M²-2*S
 	if t.Sign() == -1 {
 		t.Add(t, ec.P)
 	}
 	t.Mod(t, ec.P)
 
 	x3 = t
-	s.Sub(s, t) //S-T
+	s.Sub(s, t) // S-T
 	if s.Sign() == -1 {
 		s.Add(s, ec.P)
 	}
-	y3 = new(big.Int).Mul(m, s)   //M*(S-T)
-	y3.Sub(y3, yyyy.Lsh(yyyy, 3)) //M*(S-T)-8*YYYY
+	y3 = new(big.Int).Mul(m, s)   // M*(S-T)
+	y3.Sub(y3, yyyy.Lsh(yyyy, 3)) // M*(S-T)-8*YYYY
 	if y3.Sign() == -1 {
 		y3.Add(y3, ec.P)
 	}
 	y3.Mod(y3, ec.P)
-	z3 = new(big.Int).Add(y, z) //Y1+Z1
+	z3 = new(big.Int).Add(y, z) // Y1+Z1
 	z3.Mul(z3, z3)              //(Y1+Z1)²
 	z3.Sub(z3, yy)              //(Y1+Z1)²-YY
 	if z3.Sign() == -1 {
