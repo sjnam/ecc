@@ -17,7 +17,7 @@ import (
 // ECurve represents a short-form Weierstrass curve. (y² = x³ + ax + b)
 // Note that the point at infinity (0, 0) is not considered on the curve, and
 // although it can be returned by Add, Double, ScalarMult, or ScalarBaseMult, it
-// can't be marshaled or unmarshaled, and IsOnCurve will return false for it.
+// can't be marshaled or unmarshalled, and IsOnCurve will return false for it.
 type ECurve struct {
 	*elliptic.CurveParams
 	A *big.Int // the constant of the ECurve equation
@@ -49,7 +49,7 @@ func (ec ECurve) IsOnCurve(x, y *big.Int) bool {
 
 // zForAffine returns a Jacobian Z value for the affine point (x, y). If x and
 // y are zero, it assumes that they represent the point at infinity because (0,
-// 0) is not on the any of the curves handled here.
+// 0) is not on any of the curves handled here.
 func zForAffine(x, y *big.Int) *big.Int {
 	z := new(big.Int)
 	if x.Sign() != 0 || y.Sign() != 0 {

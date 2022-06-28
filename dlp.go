@@ -7,11 +7,11 @@ import (
 	"time"
 )
 
-// Shanks' Baby-Step Giant-Step algorithm for ECDLP
+// Shanks Baby-Step Giant-Step algorithm for ECDLP
 func Shanks(c ECurve, px, py, hx, hy *big.Int) int64 {
 	c.Gx, c.Gy = px, py
 
-	htab := make(map[string]int64)
+	tab := make(map[string]int64)
 	ss := new(big.Int).Sqrt(c.N)
 	s := ss.Int64()
 	vx, vy := new(big.Int), new(big.Int)
@@ -20,7 +20,7 @@ func Shanks(c ECurve, px, py, hx, hy *big.Int) int64 {
 	// Giant step
 	for j := int64(0); j <= c.N.Int64(); j += s {
 		k := elliptic.Marshal(c, vx, vy)
-		htab[string(k)] = j / s
+		tab[string(k)] = j / s
 		vx, vy = c.Add(vx, vy, mx, my)
 	}
 
@@ -30,7 +30,7 @@ func Shanks(c ECurve, px, py, hx, hy *big.Int) int64 {
 	// Baby step
 	for i := int64(0); i <= s; i++ {
 		k := elliptic.Marshal(c, vx, vy)
-		if m, ok := htab[string(k)]; ok {
+		if m, ok := tab[string(k)]; ok {
 			return i + m*s
 		}
 		vx, vy = c.Add(vx, vy, gix, giy)

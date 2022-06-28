@@ -31,7 +31,7 @@ func hashToInt(hash []byte, ec elliptic.Curve) *big.Int {
 // fermatInverse calculates the inverse of k in GF(P) using Fermat's method.
 // This has better constant-time properties than Euclid's method (implemented
 // in math/big.Int.ModInverse) although math/big itself isn't strictly
-// constant-time so it's not perfect.
+// constant-time, so it's not perfect.
 func fermatInverse(k, N *big.Int) *big.Int {
 	two := big.NewInt(2)
 	nMinus2 := new(big.Int).Sub(N, two)
