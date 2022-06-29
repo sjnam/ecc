@@ -33,4 +33,19 @@ func TestShanks(t *testing.T) {
 			t.Errorf("(%d,%d) want: %d, got: %d", c.x, c.y, c.k, k)
 		}
 	}
+
+	n := 0
+	for i := 0; i < len(cases); i++ {
+		c := cases[i]
+		k := PollardRho(curve, px, py, big.NewInt(c.x), big.NewInt(c.y))
+		if k == -1 || k != c.k {
+			n++
+			if n > 10 {
+				t.Errorf("(%d,%d) want: %d, got: %d", c.x, c.y, c.k, k)
+			}
+			i--
+			continue
+		}
+		n = 0
+	}
 }

@@ -124,7 +124,6 @@ func TestScalarMultiplication(t *testing.T) {
 	ord := uint64(1)
 	for ; ; ord++ {
 		xx, yy = c.Add(xx, yy, xp, yp)
-		t.Logf("%2dP: (%d,%d)\n", ord, xx, yy)
 		if xx.Sign() == 0 && yy.Sign() == 0 {
 			if ord != c.N.Uint64() {
 				t.Fatal("error")

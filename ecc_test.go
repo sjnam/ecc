@@ -19,7 +19,6 @@ func init() {
 	secp256k1.N, _ = new(big.Int).SetString("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 0)
 	secp256k1.A = big.NewInt(0)
 	secp256k1.B = big.NewInt(7)
-	secp256k1.H = big.NewInt(1)
 	secp256k1.BitSize = 256
 
 	// See FIPS 186-3, section D.2.2
@@ -30,7 +29,6 @@ func init() {
 	p224.Gx, _ = new(big.Int).SetString("b70e0cbd6bb4bf7f321390b94a03c1d356c21122343280d6115c1d21", 16)
 	p224.Gy, _ = new(big.Int).SetString("bd376388b5f723fb4c22dfe6cd4375a05a07476444d5819985007e34", 16)
 	p224.A = big.NewInt(-3)
-	p224.H = big.NewInt(1)
 	p224.BitSize = 224
 
 	// See FIPS 186-3, section D.2.3
@@ -41,7 +39,6 @@ func init() {
 	p256.Gx, _ = new(big.Int).SetString("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296", 16)
 	p256.Gy, _ = new(big.Int).SetString("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5", 16)
 	p256.A = big.NewInt(-3)
-	p256.H = big.NewInt(1)
 	p256.BitSize = 256
 
 	// See FIPS 186-3, section D.2.5
@@ -52,7 +49,6 @@ func init() {
 	p521.Gx, _ = new(big.Int).SetString("c6858e06b70404e9cd9e3ecb662395b4429c648139053fb521f828af606b4d3dbaa14b5e77efe75928fe1dc127a2ffa8de3348b3c1856a429bf97e7e31c2e5bd66", 16)
 	p521.Gy, _ = new(big.Int).SetString("11839296a789a3bc0045c8a5fb42c7d1bd998f54449579b446817afbd17273e662c97ee72995ef42640c550b9013fad0761353c7086a272c24088be94769fd16650", 16)
 	p521.A = big.NewInt(-3)
-	p521.H = big.NewInt(1)
 	p521.BitSize = 521
 }
 
