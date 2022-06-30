@@ -65,10 +65,10 @@ func TestECDH(t *testing.T) {
 	for _, c := range curves {
 		aPriv, aPubX, aPubY, _ := elliptic.GenerateKey(c, rand.Reader)
 		bPriv, bPubX, bPubY, _ := elliptic.GenerateKey(c, rand.Reader)
-		ssx1, ssy1 := c.ScalarMult(aPubX, aPubY, bPriv)
-		ssx2, ssy2 := c.ScalarMult(bPubX, bPubY, aPriv)
-		aSharedSecret := elliptic.Marshal(c, ssx1, ssy1)
-		bSharedSecret := elliptic.Marshal(c, ssx2, ssy2)
+
+		// encryption with ECDH
+		aSharedSecret := c.Encrypt(aPriv, bPubX, bPubY)
+		bSharedSecret := c.Encrypt(bPriv, aPubX, aPubY)
 		if !bytes.Equal(aSharedSecret, bSharedSecret) {
 			t.Errorf("[%s] sharedSecret1: 0x%x\nsharedSecret2: 0x%x",
 				c.Name, aSharedSecret, bSharedSecret)

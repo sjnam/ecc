@@ -6,6 +6,12 @@ import (
 	"math/big"
 )
 
+// Encrypt encrypts with ECDH
+func (ec *ECurve) Encrypt(priv []byte, pubX, pubY *big.Int) []byte {
+	ssx, ssy := ec.ScalarMult(pubX, pubY, priv)
+	return elliptic.Marshal(ec, ssx, ssy)
+}
+
 // hashToInt converts a hash value to an integer. There is some disagreement
 // about how this is done. [NSA] suggests that this is done in the obvious
 // manner, but [SECG] truncates the hash to the bit-length of the curve order
