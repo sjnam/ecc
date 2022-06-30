@@ -21,7 +21,7 @@ import (
 type ECurve struct {
 	P       *big.Int // the order of the underlying field
 	A       *big.Int // the constant of the ECurve equation
-	B       *big.Int // the constant of the BitCurve equation
+	B       *big.Int // the constant of the ECurve equation
 	Gx, Gy  *big.Int // (x,y) of the base point
 	N       *big.Int // the order of the base point
 	H       *big.Int // the cofactor of the subgroup
