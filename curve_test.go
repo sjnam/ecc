@@ -7,16 +7,17 @@ import (
 	"testing"
 )
 
-var curve *ECurve
-
-func init() {
-	curve = new(ECurve)
+func testCurve() *ECurve {
+	curve := new(ECurve)
 	curve.P = big.NewInt(97)
 	curve.A = big.NewInt(2)
 	curve.B = big.NewInt(3)
+	return curve
 }
 
 func TestAdd(t *testing.T) {
+	curve := testCurve()
+
 	cases := []struct {
 		px, py, qx, qy int64
 		wantX, wantY   *big.Int
@@ -41,6 +42,8 @@ func TestAdd(t *testing.T) {
 }
 
 func TestDouble(t *testing.T) {
+	curve := testCurve()
+
 	cases := []struct {
 		px, py       int64
 		wantX, wantY *big.Int
@@ -69,6 +72,8 @@ func TestDouble(t *testing.T) {
 }
 
 func TestScalarMult(t *testing.T) {
+	curve := testCurve()
+
 	cases := []struct {
 		px, py, k    int64
 		wantX, wantY *big.Int
@@ -110,20 +115,20 @@ func TestScalarMult(t *testing.T) {
 }
 
 func TestScalarMultiplication(t *testing.T) {
-	var c ECurve
-	c.P = big.NewInt(7919)
-	c.A = big.NewInt(1001)
-	c.B = big.NewInt(75)
-	c.N = big.NewInt(7889)
+	curve := new(ECurve)
+	curve.P = big.NewInt(7919)
+	curve.A = big.NewInt(1001)
+	curve.B = big.NewInt(75)
+	curve.N = big.NewInt(7889)
 
 	xx, yy := new(big.Int), new(big.Int)
 	xp, yp := big.NewInt(4023), big.NewInt(6036)
 
 	ord := uint64(1)
 	for ; ; ord++ {
-		xx, yy = c.Add(xx, yy, xp, yp)
+		xx, yy = curve.Add(xx, yy, xp, yp)
 		if xx.Sign() == 0 && yy.Sign() == 0 {
-			if ord != c.N.Uint64() {
+			if ord != curve.N.Uint64() {
 				t.Fatal("error")
 			}
 			break
@@ -133,12 +138,12 @@ func TestScalarMultiplication(t *testing.T) {
 	buf := new(bytes.Buffer)
 	var num uint64 = 6837283728876
 	_ = binary.Write(buf, binary.BigEndian, num)
-	x1, y1 := c.ScalarMult(xp, yp, buf.Bytes())
+	x1, y1 := curve.ScalarMult(xp, yp, buf.Bytes())
 
 	buf.Reset()
 	num = num % ord
 	_ = binary.Write(buf, binary.BigEndian, num)
-	x2, y2 := c.ScalarMult(xp, yp, buf.Bytes())
+	x2, y2 := curve.ScalarMult(xp, yp, buf.Bytes())
 
 	if x1.Cmp(x2) != 0 || y1.Cmp(y2) != 0 {
 		t.Fatal("error")
