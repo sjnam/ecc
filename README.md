@@ -1,4 +1,3 @@
 # Elliptic Curve Cryptography
 
-This program is implementation of **ecc** that
-I'm putting together for my own education.
+This elliptic curve cryptography package **ecc** that I'm putting together for my own education.
