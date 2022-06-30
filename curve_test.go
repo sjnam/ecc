@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func testCurve() *ECurve {
+func sampleCurve() *ECurve {
 	curve := new(ECurve)
 	curve.P = big.NewInt(97)
 	curve.A = big.NewInt(2)
@@ -14,7 +14,7 @@ func testCurve() *ECurve {
 }
 
 func TestAdd(t *testing.T) {
-	curve := testCurve()
+	curve := sampleCurve()
 
 	cases := []struct {
 		px, py, qx, qy int64
@@ -40,7 +40,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestDouble(t *testing.T) {
-	curve := testCurve()
+	curve := sampleCurve()
 
 	cases := []struct {
 		px, py       int64
@@ -70,7 +70,7 @@ func TestDouble(t *testing.T) {
 }
 
 func TestScalarMult(t *testing.T) {
-	curve := testCurve()
+	curve := sampleCurve()
 
 	cases := []struct {
 		px, py, k    int64
