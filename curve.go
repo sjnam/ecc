@@ -54,7 +54,6 @@ func (ec *ECurve) polynomial(x *big.Int) *big.Int {
 
 // IsOnCurve reports whether the given (x,y) lies on the curve.
 func (ec *ECurve) IsOnCurve(x, y *big.Int) bool {
-	// y² = x³ + ax + b
 	y2 := new(big.Int).Mul(y, y) // y²
 	y2.Mod(y2, ec.P)             // y²%P
 	return ec.polynomial(x).Cmp(y2) == 0
@@ -101,6 +100,7 @@ func (ec *ECurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (
 	*big.Int, *big.Int, *big.Int,
 ) {
 	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#addition-add-2007-bl
+	P := ec.P
 	x3, y3, z3 := new(big.Int), new(big.Int), new(big.Int)
 	if z1.Sign() == 0 {
 		x3.Set(x2)
@@ -116,18 +116,18 @@ func (ec *ECurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (
 	}
 
 	z1z1 := new(big.Int).Mul(z1, z1)
-	z1z1.Mod(z1z1, ec.P)
+	z1z1.Mod(z1z1, P)
 	z2z2 := new(big.Int).Mul(z2, z2)
-	z2z2.Mod(z2z2, ec.P)
+	z2z2.Mod(z2z2, P)
 
 	u1 := new(big.Int).Mul(x1, z2z2)
-	u1.Mod(u1, ec.P)
+	u1.Mod(u1, P)
 	u2 := new(big.Int).Mul(x2, z1z1)
-	u2.Mod(u2, ec.P)
+	u2.Mod(u2, P)
 	h := new(big.Int).Sub(u2, u1)
 	xEqual := h.Sign() == 0
 	if h.Sign() == -1 {
-		h.Add(h, ec.P)
+		h.Add(h, P)
 	}
 	i := new(big.Int).Lsh(h, 1)
 	i.Mul(i, i)
@@ -135,13 +135,13 @@ func (ec *ECurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (
 
 	s1 := new(big.Int).Mul(y1, z2)
 	s1.Mul(s1, z2z2)
-	s1.Mod(s1, ec.P)
+	s1.Mod(s1, P)
 	s2 := new(big.Int).Mul(y2, z1)
 	s2.Mul(s2, z1z1)
-	s2.Mod(s2, ec.P)
+	s2.Mod(s2, P)
 	r := new(big.Int).Sub(s2, s1)
 	if r.Sign() == -1 {
-		r.Add(r, ec.P)
+		r.Add(r, P)
 	}
 	yEqual := r.Sign() == 0
 	if xEqual && yEqual {
@@ -155,7 +155,7 @@ func (ec *ECurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (
 	x3.Sub(x3, j)
 	x3.Sub(x3, v)
 	x3.Sub(x3, v)
-	x3.Mod(x3, ec.P)
+	x3.Mod(x3, P)
 
 	y3 = y3.Set(r)
 	v.Sub(v, x3)
@@ -163,20 +163,20 @@ func (ec *ECurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (
 	s1.Mul(s1, j)
 	s1.Lsh(s1, 1)
 	y3.Sub(y3, s1)
-	y3.Mod(y3, ec.P)
+	y3.Mod(y3, P)
 
 	z3 = z3.Add(z1, z2)
 	z3.Mul(z3, z3)
 	z3.Sub(z3, z1z1)
 	if z3.Sign() == -1 {
-		z3.Add(z3, ec.P)
+		z3.Add(z3, P)
 	}
 	z3.Sub(z3, z2z2)
 	if z3.Sign() == -1 {
-		z3.Add(z3, ec.P)
+		z3.Add(z3, P)
 	}
 	z3.Mul(z3, h)
-	z3.Mod(z3, ec.P)
+	z3.Mod(z3, P)
 
 	return x3, y3, z3
 }
@@ -191,64 +191,65 @@ func (ec *ECurve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 // returns its double, also in Jacobian form.
 func (ec *ECurve) doubleJacobian(x, y, z *big.Int) (x3, y3, z3 *big.Int) {
 	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
+	P := ec.P
 	xx := new(big.Int).Mul(x, x) // X1²
-	xx.Mod(xx, ec.P)
+	xx.Mod(xx, P)
 	yy := new(big.Int).Mul(y, y) // Y1²
-	yy.Mod(yy, ec.P)
+	yy.Mod(yy, P)
 	yyyy := new(big.Int).Mul(yy, yy) // YY²
-	yyyy.Mod(yyyy, ec.P)
+	yyyy.Mod(yyyy, P)
 	zz := new(big.Int).Mul(z, z) // Z1²
-	zz.Mod(zz, ec.P)
+	zz.Mod(zz, P)
 	zzzz := new(big.Int).Mul(zz, zz) // ZZ²
-	zzzz.Mod(zzzz, ec.P)
+	zzzz.Mod(zzzz, P)
 
 	s := new(big.Int).Add(x, yy) // X1+YY
 	s.Mul(s, s)                  //(X1+YY)²
 	s.Sub(s, xx)                 //(X1+B)²-XX
 	if s.Sign() == -1 {
-		s.Add(s, ec.P)
+		s.Add(s, P)
 	}
 	s.Sub(s, yyyy) //(X1+B)²-XX-YYYY
 	if s.Sign() == -1 {
-		s.Add(s, ec.P)
+		s.Add(s, P)
 	}
 	s.Lsh(s, 1) // 2*((X1+B)²-XX-YYYY)
-	s.Mod(s, ec.P)
+	s.Mod(s, P)
 
 	m := new(big.Int).Lsh(xx, 1)   // 2*XX
 	m.Add(m, xx)                   // 3*XX
 	m.Add(m, zzzz.Mul(ec.A, zzzz)) // 3*XX+A*ZZ²
-	m.Mod(m, ec.P)
+	m.Mod(m, P)
 
 	t := new(big.Int).Mul(m, m)      // M²
 	t.Sub(t, new(big.Int).Lsh(s, 1)) // M²-2*S
 	if t.Sign() == -1 {
-		t.Add(t, ec.P)
+		t.Add(t, P)
 	}
-	t.Mod(t, ec.P)
+	t.Mod(t, P)
 
 	x3 = t
 	s.Sub(s, t) // S-T
 	if s.Sign() == -1 {
-		s.Add(s, ec.P)
+		s.Add(s, P)
 	}
 	y3 = new(big.Int).Mul(m, s)   // M*(S-T)
 	y3.Sub(y3, yyyy.Lsh(yyyy, 3)) // M*(S-T)-8*YYYY
 	if y3.Sign() == -1 {
-		y3.Add(y3, ec.P)
+		y3.Add(y3, P)
 	}
-	y3.Mod(y3, ec.P)
+	y3.Mod(y3, P)
 	z3 = new(big.Int).Add(y, z) // Y1+Z1
 	z3.Mul(z3, z3)              //(Y1+Z1)²
 	z3.Sub(z3, yy)              //(Y1+Z1)²-YY
 	if z3.Sign() == -1 {
-		z3.Add(z3, ec.P)
+		z3.Add(z3, P)
 	}
 	z3.Sub(z3, zz) //(Y1+Z1)²-YY-ZZ
 	if z3.Sign() == -1 {
-		z3.Add(z3, ec.P)
+		z3.Add(z3, P)
 	}
-	z3.Mod(z3, ec.P)
+	z3.Mod(z3, P)
 
 	return
 }
