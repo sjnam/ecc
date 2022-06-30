@@ -1,8 +1,6 @@
 package ecc
 
 import (
-	"bytes"
-	"encoding/binary"
 	"math/big"
 	"testing"
 )
@@ -114,37 +112,18 @@ func TestScalarMult(t *testing.T) {
 	}
 }
 
-func TestScalarMultiplication(t *testing.T) {
+func TestScalarMult2(t *testing.T) {
 	curve := new(ECurve)
 	curve.P = big.NewInt(7919)
 	curve.A = big.NewInt(1001)
 	curve.B = big.NewInt(75)
 	curve.N = big.NewInt(7889)
 
-	xx, yy := new(big.Int), new(big.Int)
 	xp, yp := big.NewInt(4023), big.NewInt(6036)
-
-	ord := uint64(1)
-	for ; ; ord++ {
-		xx, yy = curve.Add(xx, yy, xp, yp)
-		if xx.Sign() == 0 && yy.Sign() == 0 {
-			if ord != curve.N.Uint64() {
-				t.Fatal("error")
-			}
-			break
-		}
-	}
-
-	buf := new(bytes.Buffer)
-	var num uint64 = 6837283728876
-	_ = binary.Write(buf, binary.BigEndian, num)
-	x1, y1 := curve.ScalarMult(xp, yp, buf.Bytes())
-
-	buf.Reset()
-	num = num % ord
-	_ = binary.Write(buf, binary.BigEndian, num)
-	x2, y2 := curve.ScalarMult(xp, yp, buf.Bytes())
-
+	num, _ := new(big.Int).SetString("0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798", 0)
+	x1, y1 := curve.ScalarMult(xp, yp, num.Bytes())
+	num.Mod(num, curve.N)
+	x2, y2 := curve.ScalarMult(xp, yp, num.Bytes())
 	if x1.Cmp(x2) != 0 || y1.Cmp(y2) != 0 {
 		t.Fatal("error")
 	}

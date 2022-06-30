@@ -27,7 +27,7 @@ func TestDLP(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		k := Shanks(curve, px, py, big.NewInt(c.x), big.NewInt(c.y))
+		k := curve.Shanks(px, py, big.NewInt(c.x), big.NewInt(c.y))
 		if k == -1 || k != c.k {
 			t.Errorf("(%d,%d) want: %d, got: %d", c.x, c.y, c.k, k)
 		}
@@ -36,7 +36,7 @@ func TestDLP(t *testing.T) {
 	n := 0
 	for i := 0; i < len(cases); i++ {
 		c := cases[i]
-		k := PollardRho(curve, px, py, big.NewInt(c.x), big.NewInt(c.y))
+		k := curve.PollardRho(px, py, big.NewInt(c.x), big.NewInt(c.y))
 		if k == -1 || k != c.k {
 			n++
 			if n > 10 {

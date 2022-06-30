@@ -77,8 +77,8 @@ func TestECDSA(t *testing.T) {
 	for _, c := range curves {
 		priv, Hx, Hy, _ := elliptic.GenerateKey(c, rand.Reader)
 		h := sha512.Sum512([]byte("Hello, world."))
-		r, s := Sign(priv, c, h[:])
-		if !Verify(Hx, Hy, c, h[:], r, s) {
+		r, s := c.Sign(priv, h[:])
+		if !c.Verify(Hx, Hy, h[:], r, s) {
 			t.Errorf("[%s] invalid signature", c.Params().Name)
 		}
 	}

@@ -8,7 +8,7 @@ import (
 )
 
 // Shanks Baby-Step Giant-Step algorithm for ECDLP
-func Shanks(ec *ECurve, px, py, hx, hy *big.Int) int64 {
+func (ec *ECurve) Shanks(px, py, hx, hy *big.Int) int64 {
 	ec.Gx, ec.Gy = px, py
 
 	tab := make(map[string]int64)
@@ -35,12 +35,11 @@ func Shanks(ec *ECurve, px, py, hx, hy *big.Int) int64 {
 		}
 		vx, vy = ec.Add(vx, vy, gix, giy)
 	}
-
 	return -1
 }
 
 // PollardRho algorithm for the ECDLP
-func PollardRho(ec *ECurve, px, py, hx, hy *big.Int) int64 {
+func (ec *ECurve) PollardRho(px, py, hx, hy *big.Int) int64 {
 	ec.Gx, ec.Gy = px, py
 
 	f := func(x, y, a, b *big.Int) (*big.Int, *big.Int, *big.Int, *big.Int) {
@@ -91,11 +90,9 @@ func PollardRho(ec *ECurve, px, py, hx, hy *big.Int) int64 {
 				b2.ModInverse(b2, ec.N)
 				a1.Mul(a1, b2)
 				a1.Mod(a1, ec.N)
-
 				return a1.Int64()
 			}
 		}
 	}
-
 	return -1
 }

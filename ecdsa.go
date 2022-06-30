@@ -13,7 +13,7 @@ import (
 // OpenSSL right shifts excess bits from the number if the hash is too large,
 // and we mirror that too.
 func hashToInt(hash []byte, ec *ECurve) *big.Int {
-	orderBits := ec.Params().N.BitLen()
+	orderBits := ec.N.BitLen()
 	orderBytes := (orderBits + 7) / 8
 	if len(hash) > orderBytes {
 		hash = hash[:orderBytes]
@@ -43,7 +43,7 @@ func fermatInverse(k, N *big.Int) *big.Int {
 // private key's curve order, the hash will be truncated to that length. It
 // returns the signature as a pair of integers. The security of the private key
 // depends on the entropy of rand.
-func Sign(priv []byte, ec *ECurve, hash []byte) (r, s *big.Int) {
+func (ec *ECurve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 	N := ec.N
 	d := new(big.Int).SetBytes(priv)
 
@@ -69,7 +69,7 @@ func Sign(priv []byte, ec *ECurve, hash []byte) (r, s *big.Int) {
 
 // Verify verifies the signature in r, s of hash using the public key, pub. Its
 // return value records whether the signature is valid.
-func Verify(Hx, Hy *big.Int, ec *ECurve, hash []byte, r, s *big.Int) bool {
+func (ec *ECurve) Verify(Hx, Hy *big.Int, hash []byte, r, s *big.Int) bool {
 	N := ec.N
 	z := hashToInt(hash, ec)
 

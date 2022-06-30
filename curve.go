@@ -42,13 +42,13 @@ func (ec *ECurve) Params() *elliptic.CurveParams {
 	}
 }
 
-// polynomial returns y² = x³ + ax + b.
+// polynomial returns y² = x³ + Ax + B.
 func (ec *ECurve) polynomial(x *big.Int) *big.Int {
 	x3 := new(big.Int).Mul(x, x)          // x²
 	x3.Mul(x3, x)                         // x³
 	x3.Add(x3, new(big.Int).Mul(x, ec.A)) // x³+AX
-	x3.Add(x3, ec.B)                      // x³+B
-	x3.Mod(x3, ec.P)                      //(x³+B)%P
+	x3.Add(x3, ec.B)                      // x³+AX+B
+	x3.Mod(x3, ec.P)                      //(x³+AX+B)%P
 	return x3
 }
 
