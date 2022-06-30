@@ -2,16 +2,15 @@ package ecc
 
 import (
 	"bytes"
-	"crypto/elliptic"
 	"encoding/binary"
 	"math/big"
 	"testing"
 )
 
-var curve ECurve
+var curve *ECurve
 
 func init() {
-	curve.CurveParams = &elliptic.CurveParams{Name: "Simple"}
+	curve = new(ECurve)
 	curve.P = big.NewInt(97)
 	curve.A = big.NewInt(2)
 	curve.B = big.NewInt(3)
@@ -112,7 +111,6 @@ func TestScalarMult(t *testing.T) {
 
 func TestScalarMultiplication(t *testing.T) {
 	var c ECurve
-	c.CurveParams = &elliptic.CurveParams{}
 	c.P = big.NewInt(7919)
 	c.A = big.NewInt(1001)
 	c.B = big.NewInt(75)

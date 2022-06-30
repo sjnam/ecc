@@ -1,13 +1,11 @@
 package ecc
 
 import (
-	"crypto/elliptic"
 	"math/big"
 	"testing"
 )
 
 func TestShanks(t *testing.T) {
-	curve.CurveParams = &elliptic.CurveParams{Name: "DLP-Test"}
 	curve.P = big.NewInt(7919)
 	curve.A = big.NewInt(1001)
 	curve.B = big.NewInt(75)

@@ -8,7 +8,7 @@ import (
 )
 
 // Shanks Baby-Step Giant-Step algorithm for ECDLP
-func Shanks(c ECurve, px, py, hx, hy *big.Int) int64 {
+func Shanks(c *ECurve, px, py, hx, hy *big.Int) int64 {
 	c.Gx, c.Gy = px, py
 
 	tab := make(map[string]int64)
@@ -40,7 +40,7 @@ func Shanks(c ECurve, px, py, hx, hy *big.Int) int64 {
 }
 
 // PollardRho algorithm for the ECDLP
-func PollardRho(c ECurve, px, py, hx, hy *big.Int) int64 {
+func PollardRho(c *ECurve, px, py, hx, hy *big.Int) int64 {
 	c.Gx, c.Gy = px, py
 
 	f := func(x, y, a, b *big.Int) (*big.Int, *big.Int, *big.Int, *big.Int) {
