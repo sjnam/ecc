@@ -49,26 +49,24 @@ func fermatInverse(k, N *big.Int) *big.Int {
 // private key's curve order, the hash will be truncated to that length. It
 // returns the signature as a pair of integers. The security of the private key
 // depends on the entropy of rand.
-func (ec *ECurve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
+func (ec *ECurve) Sign(priv []byte, hash []byte) (*big.Int, *big.Int) {
 	N := ec.N
-	d := new(big.Int).SetBytes(priv)
+	s := new(big.Int).SetBytes(priv)
+	z := hashToInt(hash, ec)
 
 	for {
-		k, xp, _, _ := elliptic.GenerateKey(ec, rand.Reader)
-		r = new(big.Int).Mod(xp, N)
-		if r.Sign() == 0 {
-			continue
-		}
+		k, r, _, _ := elliptic.GenerateKey(ec, rand.Reader)
+		r.Mod(r, N)
+		//if r.Sign() == 0 {
+		//	continue
+		//}
 
-		z := hashToInt(hash, ec)
-		s = new(big.Int).SetBytes(k)
-		s = fermatInverse(s, N)
-		u := new(big.Int).Mul(r, d)
-		u.Add(u, z)
-		s.Mul(s, u)
+		s.Mul(r, s)
+		s.Add(s, z)
+		s.Mul(fermatInverse(new(big.Int).SetBytes(k), N), s)
 		s.Mod(s, N)
 		if s.Sign() != 0 {
-			return
+			return r, s
 		}
 	}
 }
