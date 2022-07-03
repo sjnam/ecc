@@ -19,7 +19,7 @@ func (ec *EllipticCurve) Encrypt(priv []byte, pubX, pubY *big.Int) []byte {
 // OpenSSL right shifts excess bits from the number if the hash is too large,
 // and we mirror that too.
 func (ec *EllipticCurve) hashToInt(hash []byte) *big.Int {
-	orderBits := ec.N.BitLen()
+	orderBits := ec.BitSize
 	orderBytes := (orderBits + 7) / 8
 	if len(hash) > orderBytes {
 		hash = hash[:orderBytes]
