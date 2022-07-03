@@ -6,7 +6,7 @@ import (
 )
 
 func sampleCurve() *EllipticCurve {
-	curve := new(EllipticCurve)
+	curve := &EllipticCurve{Name: "sample"}
 	curve.P = big.NewInt(97)
 	curve.A = big.NewInt(2)
 	curve.B = big.NewInt(3)
@@ -113,17 +113,17 @@ func TestScalarMult(t *testing.T) {
 }
 
 func TestScalarMult2(t *testing.T) {
-	curve := new(EllipticCurve)
-	curve.P = big.NewInt(7919)
-	curve.A = big.NewInt(1001)
-	curve.B = big.NewInt(75)
-	curve.N = big.NewInt(7889)
+	c := new(EllipticCurve)
+	c.P = big.NewInt(7919)
+	c.A = big.NewInt(1001)
+	c.B = big.NewInt(75)
+	c.N = big.NewInt(7889)
 
 	xp, yp := big.NewInt(4023), big.NewInt(6036)
 	num, _ := new(big.Int).SetString("0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798", 0)
-	x1, y1 := curve.ScalarMult(xp, yp, num.Bytes())
-	num.Mod(num, curve.N)
-	x2, y2 := curve.ScalarMult(xp, yp, num.Bytes())
+	x1, y1 := c.ScalarMult(xp, yp, num.Bytes())
+	num.Mod(num, c.N)
+	x2, y2 := c.ScalarMult(xp, yp, num.Bytes())
 	if x1.Cmp(x2) != 0 || y1.Cmp(y2) != 0 {
 		t.Fatal("error")
 	}
