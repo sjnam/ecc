@@ -9,10 +9,10 @@ import (
 	"testing"
 )
 
-var secp256k1, p224, p256, p521 *ECurve
+var secp256k1, p224, p256, p521 *EllipticCurve
 
 func init() {
-	secp256k1 = new(ECurve)
+	secp256k1 = new(EllipticCurve)
 	secp256k1.Name = "secp256k1"
 	secp256k1.P, _ = new(big.Int).SetString("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f", 0)
 	secp256k1.A = big.NewInt(0)
@@ -24,7 +24,7 @@ func init() {
 	secp256k1.BitSize = 256
 
 	// See FIPS 186-3, section D.2.2
-	p224 = new(ECurve)
+	p224 = new(EllipticCurve)
 	p224.Name = "p224"
 	p224.P, _ = new(big.Int).SetString("0xffffffffffffffffffffffffffffffff000000000000000000000001", 0)
 	p224.A = big.NewInt(-3)
@@ -36,7 +36,7 @@ func init() {
 	p224.BitSize = 224
 
 	// See FIPS 186-3, section D.2.3
-	p256 = new(ECurve)
+	p256 = new(EllipticCurve)
 	p256.Name = "p256"
 	p256.P, _ = new(big.Int).SetString("0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff", 0)
 	p256.A = big.NewInt(-3)
@@ -48,7 +48,7 @@ func init() {
 	p256.BitSize = 256
 
 	// See FIPS 186-3, section D.2.5
-	p521 = new(ECurve)
+	p521 = new(EllipticCurve)
 	p521.Name = "p521"
 	p521.P, _ = new(big.Int).SetString("0x1ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 0)
 	p521.A = big.NewInt(-3)
@@ -61,7 +61,7 @@ func init() {
 }
 
 func TestECDH(t *testing.T) {
-	curves := []*ECurve{secp256k1, p224, p256, p521}
+	curves := []*EllipticCurve{secp256k1, p224, p256, p521}
 	for _, c := range curves {
 		aPriv, aPubX, aPubY, _ := elliptic.GenerateKey(c, rand.Reader)
 		bPriv, bPubX, bPubY, _ := elliptic.GenerateKey(c, rand.Reader)
@@ -77,7 +77,7 @@ func TestECDH(t *testing.T) {
 }
 
 func TestECDSA(t *testing.T) {
-	curves := []*ECurve{secp256k1, p224, p256, p521}
+	curves := []*EllipticCurve{secp256k1, p224, p256, p521}
 	for _, c := range curves {
 		priv, Hx, Hy, _ := elliptic.GenerateKey(c, rand.Reader)
 		h := sha512.Sum512([]byte("Hello, world."))

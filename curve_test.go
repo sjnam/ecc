@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-func sampleCurve() *ECurve {
-	curve := new(ECurve)
+func sampleCurve() *EllipticCurve {
+	curve := new(EllipticCurve)
 	curve.P = big.NewInt(97)
 	curve.A = big.NewInt(2)
 	curve.B = big.NewInt(3)
@@ -113,7 +113,7 @@ func TestScalarMult(t *testing.T) {
 }
 
 func TestScalarMult2(t *testing.T) {
-	curve := new(ECurve)
+	curve := new(EllipticCurve)
 	curve.P = big.NewInt(7919)
 	curve.A = big.NewInt(1001)
 	curve.B = big.NewInt(75)

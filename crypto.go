@@ -7,7 +7,7 @@ import (
 )
 
 // Encrypt encrypts with ECDH
-func (ec *ECurve) Encrypt(priv []byte, pubX, pubY *big.Int) []byte {
+func (ec *EllipticCurve) Encrypt(priv []byte, pubX, pubY *big.Int) []byte {
 	ssx, ssy := ec.ScalarMult(pubX, pubY, priv)
 	return elliptic.Marshal(ec, ssx, ssy)
 }
@@ -18,7 +18,7 @@ func (ec *ECurve) Encrypt(priv []byte, pubX, pubY *big.Int) []byte {
 // first. We follow [SECG] because that's what OpenSSL does. Additionally,
 // OpenSSL right shifts excess bits from the number if the hash is too large,
 // and we mirror that too.
-func hashToInt(hash []byte, ec *ECurve) *big.Int {
+func (ec *EllipticCurve) hashToInt(hash []byte) *big.Int {
 	orderBits := ec.N.BitLen()
 	orderBytes := (orderBits + 7) / 8
 	if len(hash) > orderBytes {
@@ -38,7 +38,8 @@ func hashToInt(hash []byte, ec *ECurve) *big.Int {
 // This has better constant-time properties than Euclid's method (implemented
 // in math/big.Int.ModInverse) although math/big itself isn't strictly
 // constant-time, so it's not perfect.
-func fermatInverse(k, N *big.Int) *big.Int {
+func (ec *EllipticCurve) fermatInverse(k *big.Int) *big.Int {
+	N := ec.N
 	two := big.NewInt(2)
 	nMinus2 := new(big.Int).Sub(N, two)
 	return new(big.Int).Exp(k, nMinus2, N)
@@ -49,17 +50,17 @@ func fermatInverse(k, N *big.Int) *big.Int {
 // private key's curve order, the hash will be truncated to that length. It
 // returns the signature as a pair of integers. The security of the private key
 // depends on the entropy of rand.
-func (ec *ECurve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
+func (ec *EllipticCurve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 	N := ec.N
 	s = new(big.Int).SetBytes(priv)
-	z := hashToInt(hash, ec)
+	z := ec.hashToInt(hash)
 	var k []byte
 
 	for {
 		k, r, _, _ = elliptic.GenerateKey(ec, rand.Reader)
 		s.Mul(r, s)
 		s.Add(s, z)
-		s.Mul(fermatInverse(new(big.Int).SetBytes(k), N), s)
+		s.Mul(ec.fermatInverse(new(big.Int).SetBytes(k)), s)
 		s.Mod(s, N)
 		if s.Sign() != 0 {
 			return
@@ -69,11 +70,11 @@ func (ec *ECurve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 
 // Verify verifies the signature in r, s of hash using the public key, pub. Its
 // return value records whether the signature is valid.
-func (ec *ECurve) Verify(Hx, Hy *big.Int, hash []byte, r, s *big.Int) bool {
+func (ec *EllipticCurve) Verify(Hx, Hy *big.Int, hash []byte, r, s *big.Int) bool {
 	N := ec.N
-	z := hashToInt(hash, ec)
+	z := ec.hashToInt(hash)
 
-	w := fermatInverse(s, N)
+	w := ec.fermatInverse(s)
 	u1 := new(big.Int).Mul(w, z)
 	u1.Mod(u1, N)
 	u2 := new(big.Int).Mul(w, r)

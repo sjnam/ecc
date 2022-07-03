@@ -6,7 +6,7 @@ import (
 )
 
 func TestDLP(t *testing.T) {
-	curve := new(ECurve)
+	curve := new(EllipticCurve)
 	curve.P = big.NewInt(7919)
 	curve.A = big.NewInt(1001)
 	curve.B = big.NewInt(75)
