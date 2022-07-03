@@ -96,23 +96,21 @@ func (ec *ECurve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 
 // addJacobian takes two points in Jacobian coordinates, (x1, y1, z1) and
 // (x2, y2, z2) and returns their sum, also in Jacobian form.
-func (ec *ECurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (
-	*big.Int, *big.Int, *big.Int,
-) {
+func (ec *ECurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (x3, y3, z3 *big.Int) {
 	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#addition-add-2007-bl
 	P := ec.P
-	x3, y3, z3 := new(big.Int), new(big.Int), new(big.Int)
+	x3, y3, z3 = new(big.Int), new(big.Int), new(big.Int)
 	if z1.Sign() == 0 {
 		x3.Set(x2)
 		y3.Set(y2)
 		z3.Set(z2)
-		return x3, y3, z3
+		return
 	}
 	if z2.Sign() == 0 {
 		x3.Set(x1)
 		y3.Set(y1)
 		z3.Set(z1)
-		return x3, y3, z3
+		return
 	}
 
 	z1z1 := new(big.Int).Mul(z1, z1)
@@ -150,14 +148,14 @@ func (ec *ECurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (
 	r.Lsh(r, 1)
 	v := new(big.Int).Mul(u1, i)
 
-	x3 = x3.Set(r)
+	x3.Set(r)
 	x3.Mul(x3, x3)
 	x3.Sub(x3, j)
 	x3.Sub(x3, v)
 	x3.Sub(x3, v)
 	x3.Mod(x3, P)
 
-	y3 = y3.Set(r)
+	y3.Set(r)
 	v.Sub(v, x3)
 	y3.Mul(y3, v)
 	s1.Mul(s1, j)
@@ -165,7 +163,7 @@ func (ec *ECurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (
 	y3.Sub(y3, s1)
 	y3.Mod(y3, P)
 
-	z3 = z3.Add(z1, z2)
+	z3.Add(z1, z2)
 	z3.Mul(z3, z3)
 	z3.Sub(z3, z1z1)
 	if z3.Sign() == -1 {
@@ -178,7 +176,7 @@ func (ec *ECurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (
 	z3.Mul(z3, h)
 	z3.Mod(z3, P)
 
-	return x3, y3, z3
+	return
 }
 
 // Double returns 2*(x,y)
@@ -267,7 +265,6 @@ func (ec *ECurve) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
 			b <<= 1
 		}
 	}
-
 	return ec.affineFromJacobian(x, y, z)
 }
 
