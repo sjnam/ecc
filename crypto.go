@@ -2,7 +2,6 @@ package ecc
 
 import (
 	"crypto/elliptic"
-	"crypto/rand"
 	"math/big"
 )
 
@@ -57,7 +56,7 @@ func (ec *EllipticCurve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 	var k []byte
 
 	for {
-		k, r, _, _ = elliptic.GenerateKey(ec, rand.Reader)
+		k, r, _, _ = ec.GenerateKey()
 		s.Mul(r, s)
 		s.Add(s, z)
 		s.Mul(ec.fermatInverse(new(big.Int).SetBytes(k)), s)

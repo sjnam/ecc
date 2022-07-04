@@ -11,6 +11,7 @@ package ecc
 
 import (
 	"crypto/elliptic"
+	"crypto/rand"
 	"math/big"
 )
 
@@ -280,4 +281,20 @@ func (ec *EllipticCurve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []
 	x1, y1 := ec.ScalarBaseMult(baseScalar)
 	x2, y2 := ec.ScalarMult(bigX, bigY, scalar)
 	return ec.Add(x1, y1, x2, y2)
+}
+
+// GenerateKey returns a public/private key pair.
+func (ec *EllipticCurve) GenerateKey() (priv []byte, x, y *big.Int, err error) {
+	var k *big.Int
+	if ec.N.BitLen() < 9 {
+		k, err = rand.Int(rand.Reader, ec.N)
+		if err != nil {
+			return
+		}
+		priv = k.Bytes()
+		x, y = ec.ScalarBaseMult(priv)
+	} else {
+		priv, x, y, err = elliptic.GenerateKey(ec, rand.Reader)
+	}
+	return
 }
