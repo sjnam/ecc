@@ -1,7 +1,6 @@
 package ecc
 
 import (
-	"crypto/elliptic"
 	"math/big"
 	"math/rand"
 	"time"
@@ -19,7 +18,7 @@ func (ec *EllipticCurve) Shanks(px, py, hx, hy *big.Int) int64 {
 
 	// Giant step
 	for j := int64(0); j <= ec.N.Int64(); j += s {
-		k := elliptic.Marshal(ec, vx, vy)
+		k := ec.Marshal(vx, vy)
 		tab[string(k)] = j / s
 		vx, vy = ec.Add(vx, vy, mx, my)
 	}
@@ -29,7 +28,7 @@ func (ec *EllipticCurve) Shanks(px, py, hx, hy *big.Int) int64 {
 
 	// Baby step
 	for i := int64(0); i <= s; i++ {
-		k := elliptic.Marshal(ec, vx, vy)
+		k := ec.Marshal(vx, vy)
 		if m, ok := tab[string(k)]; ok {
 			return i + m*s
 		}

@@ -2,17 +2,15 @@ package ecc
 
 import (
 	"bytes"
-	"crypto/elliptic"
-	"crypto/rand"
 	"crypto/sha512"
 	"testing"
 )
 
 func TestECDH(t *testing.T) {
-	curves := []*EllipticCurve{s256, p224, p256, p521}
+	curves := []*EllipticCurve{s256, p224, p256, p384, p521}
 	for _, c := range curves {
-		aPriv, aPubX, aPubY, _ := elliptic.GenerateKey(c, rand.Reader)
-		bPriv, bPubX, bPubY, _ := elliptic.GenerateKey(c, rand.Reader)
+		aPriv, aPubX, aPubY, _ := c.GenerateKey()
+		bPriv, bPubX, bPubY, _ := c.GenerateKey()
 
 		// encryption with ECDH
 		aSharedSecret := c.Encrypt(aPriv, bPubX, bPubY)
@@ -25,9 +23,9 @@ func TestECDH(t *testing.T) {
 }
 
 func TestECDSA(t *testing.T) {
-	curves := []*EllipticCurve{s256, p224, p256, p521}
+	curves := []*EllipticCurve{s256, p224, p256, p384, p521}
 	for _, c := range curves {
-		priv, Hx, Hy, _ := elliptic.GenerateKey(c, rand.Reader)
+		priv, Hx, Hy, _ := c.GenerateKey()
 		h := sha512.Sum512([]byte("Hello, world."))
 		r, s := c.Sign(priv, h[:])
 		if !c.Verify(Hx, Hy, h[:], r, s) {
