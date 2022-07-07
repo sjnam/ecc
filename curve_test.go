@@ -2,8 +2,6 @@ package ecc
 
 import (
 	"bytes"
-	"crypto/elliptic"
-	"crypto/rand"
 	"encoding/hex"
 	"math/big"
 	"testing"
@@ -104,8 +102,8 @@ func TestOffCurve(t *testing.T) {
 		if curve.IsOnCurve(x, y) {
 			t.Errorf("point off curve is claimed to be on the curve")
 		}
-		b := elliptic.Marshal(curve, x, y)
-		x1, y1 := elliptic.Unmarshal(curve, b)
+		b := curve.Marshal(x, y)
+		x1, y1 := curve.Unmarshal(b)
 		if x1 != nil || y1 != nil {
 			t.Errorf("unmarshaling a point not on the curve succeeded")
 		}
@@ -117,7 +115,7 @@ func TestInfinity(t *testing.T) {
 }
 
 func testInfinity(t *testing.T, curve *EllipticCurve) {
-	_, x, y, _ := elliptic.GenerateKey(curve, rand.Reader)
+	_, x, y, _ := curve.GenerateKey()
 	x, y = curve.ScalarMult(x, y, curve.N.Bytes())
 	if x.Sign() != 0 || y.Sign() != 0 {
 		t.Errorf("x^q != ∞")
@@ -152,24 +150,24 @@ func testInfinity(t *testing.T, curve *EllipticCurve) {
 		t.Errorf("IsOnCurve(∞) == true")
 	}
 
-	if xx, yy := elliptic.Unmarshal(curve, elliptic.Marshal(curve, x, y)); xx != nil || yy != nil {
+	if xx, yy := curve.Unmarshal(curve.Marshal(x, y)); xx != nil || yy != nil {
 		t.Errorf("Unmarshal(Marshal(∞)) did not return an error")
 	}
 	// We don't test UnmarshalCompressed(MarshalCompressed(∞)) because there are
 	// two valid points with x = 0.
-	if xx, yy := elliptic.Unmarshal(curve, []byte{0x00}); xx != nil || yy != nil {
+	if xx, yy := curve.Unmarshal([]byte{0x00}); xx != nil || yy != nil {
 		t.Errorf("Unmarshal(∞) did not return an error")
 	}
 }
 
 func TestMarshal(t *testing.T) {
 	testAllCurves(t, func(t *testing.T, curve *EllipticCurve) {
-		_, x, y, err := elliptic.GenerateKey(curve, rand.Reader)
+		_, x, y, err := curve.GenerateKey()
 		if err != nil {
 			t.Fatal(err)
 		}
-		serialized := elliptic.Marshal(curve, x, y)
-		xx, yy := elliptic.Unmarshal(curve, serialized)
+		serialized := curve.Marshal(x, y)
+		xx, yy := curve.Unmarshal(serialized)
 		if xx == nil {
 			t.Fatal("failed to unmarshal")
 		}
@@ -200,7 +198,7 @@ func testUnmarshalToLargeCoordinates(t *testing.T, curve *EllipticCurve) {
 	x.FillBytes(invalid[1 : 1+byteLen])
 	y.FillBytes(invalid[1+byteLen:])
 
-	if X, Y := elliptic.Unmarshal(curve, invalid); X != nil || Y != nil {
+	if X, Y := curve.Unmarshal(invalid); X != nil || Y != nil {
 		t.Errorf("Unmarshal accepts invalid X coordinate")
 	}
 
@@ -219,7 +217,7 @@ func testUnmarshalToLargeCoordinates(t *testing.T, curve *EllipticCurve) {
 		x.FillBytes(invalid[1 : 1+byteLen])
 		y.FillBytes(invalid[1+byteLen:])
 
-		if X, Y := elliptic.Unmarshal(curve, invalid); X != nil || Y != nil {
+		if X, Y := curve.Unmarshal(invalid); X != nil || Y != nil {
 			t.Errorf("Unmarshal accepts invalid Y coordinate")
 		}
 	}
@@ -240,7 +238,7 @@ func testInvalidCoordinates(t *testing.T, curve *EllipticCurve) {
 	}
 
 	p := curve.P
-	_, x, y, _ := elliptic.GenerateKey(curve, rand.Reader)
+	_, x, y, _ := curve.GenerateKey()
 	xx, yy := new(big.Int), new(big.Int)
 
 	// Check if the sign is getting dropped.
@@ -296,7 +294,7 @@ func TestMarshalCompressed(t *testing.T) {
 
 	t.Run("Invalid", func(t *testing.T) {
 		data, _ := hex.DecodeString("02fd4bf61763b46581fd9174d623516cf3c81edd40e29ffa2777fb6cb0ae3ce535")
-		X, Y := elliptic.UnmarshalCompressed(p256, data)
+		X, Y := p256.UnmarshalCompressed(data)
 		if X != nil || Y != nil {
 			t.Error("expected an error for invalid encoding")
 		}
@@ -307,7 +305,7 @@ func TestMarshalCompressed(t *testing.T) {
 	}
 
 	testAllCurves(t, func(t *testing.T, curve *EllipticCurve) {
-		_, x, y, err := elliptic.GenerateKey(curve, rand.Reader)
+		_, x, y, err := curve.GenerateKey()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -320,7 +318,7 @@ func testMarshalCompressed(t *testing.T, curve *EllipticCurve, x, y *big.Int, wa
 	if !curve.IsOnCurve(x, y) {
 		t.Fatal("invalid test point")
 	}
-	got := elliptic.MarshalCompressed(curve, x, y)
+	got := curve.MarshalCompressed(x, y)
 	if want != nil && !bytes.Equal(got, want) {
 		t.Errorf("got unexpected MarshalCompressed result: got %x, want %x", got, want)
 	}
@@ -369,7 +367,7 @@ func benchmarkAllCurves(t *testing.B, f func(*testing.B, *EllipticCurve)) {
 
 func BenchmarkScalarBaseMult(b *testing.B) {
 	benchmarkAllCurves(b, func(b *testing.B, curve *EllipticCurve) {
-		priv, _, _, _ := elliptic.GenerateKey(curve, rand.Reader)
+		priv, _, _, _ := curve.GenerateKey()
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -382,8 +380,8 @@ func BenchmarkScalarBaseMult(b *testing.B) {
 
 func BenchmarkScalarMult(b *testing.B) {
 	benchmarkAllCurves(b, func(b *testing.B, curve *EllipticCurve) {
-		_, x, y, _ := elliptic.GenerateKey(curve, rand.Reader)
-		priv, _, _, _ := elliptic.GenerateKey(curve, rand.Reader)
+		_, x, y, _ := curve.GenerateKey()
+		priv, _, _, _ := curve.GenerateKey()
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -394,12 +392,12 @@ func BenchmarkScalarMult(b *testing.B) {
 
 func BenchmarkMarshalUnmarshal(b *testing.B) {
 	benchmarkAllCurves(b, func(b *testing.B, curve *EllipticCurve) {
-		_, x, y, _ := elliptic.GenerateKey(curve, rand.Reader)
+		_, x, y, _ := curve.GenerateKey()
 		b.Run("Uncompressed", func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				buf := elliptic.Marshal(curve, x, y)
-				xx, yy := elliptic.Unmarshal(curve, buf)
+				buf := curve.Marshal(x, y)
+				xx, yy := curve.Unmarshal(buf)
 				if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
 					b.Error("Unmarshal output different from Marshal input")
 				}
@@ -408,8 +406,8 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
 		b.Run("Compressed", func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				buf := elliptic.Marshal(curve, x, y)
-				xx, yy := elliptic.Unmarshal(curve, buf)
+				buf := curve.Marshal(x, y)
+				xx, yy := curve.Unmarshal(buf)
 				if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
 					b.Error("Unmarshal output different from Marshal input")
 				}
