@@ -223,9 +223,9 @@ func testUnmarshalToLargeCoordinates(t *testing.T, curve *EllipticCurve) {
 	}
 }
 
-//TestInvalidCoordinates tests big.Int values that are not valid field elements
-//(negative or bigger than P). They are expected to return false from
-//IsOnCurve, all other behavior is undefined.
+// TestInvalidCoordinates tests big.Int values that are not valid field elements
+// (negative or bigger than P). They are expected to return false from
+// IsOnCurve, all other behavior is undefined.
 func TestInvalidCoordinates(t *testing.T) {
 	testAllCurves(t, testInvalidCoordinates)
 }
@@ -241,17 +241,17 @@ func testInvalidCoordinates(t *testing.T, curve *EllipticCurve) {
 	_, x, y, _ := curve.GenerateKey()
 	xx, yy := new(big.Int), new(big.Int)
 
-	//	// Check if the sign is getting dropped.
-	//	xx.Neg(x)
-	//	checkIsOnCurveFalse("-x, y", xx, y)
-	//	yy.Neg(y)
-	//	checkIsOnCurveFalse("x, -y", x, yy)
+	// Check if the sign is getting dropped.
+	xx.Neg(x)
+	checkIsOnCurveFalse("-x, y", xx, y)
+	yy.Neg(y)
+	checkIsOnCurveFalse("x, -y", x, yy)
 	//
-	//	// Check if negative values are reduced modulo P.
-	//	xx.Sub(x, p)
-	//	checkIsOnCurveFalse("x-P, y", xx, y)
-	//	yy.Sub(y, p)
-	//	checkIsOnCurveFalse("x, y-P", x, yy)
+	// Check if negative values are reduced modulo P.
+	xx.Sub(x, p)
+	checkIsOnCurveFalse("x-P, y", xx, y)
+	yy.Sub(y, p)
+	checkIsOnCurveFalse("x, y-P", x, yy)
 
 	// Check if positive values are reduced modulo P.
 	xx.Add(x, p)
@@ -311,7 +311,6 @@ func TestMarshalCompressed(t *testing.T) {
 		}
 		testMarshalCompressed(t, curve, x, y, nil)
 	})
-
 }
 
 func testMarshalCompressed(t *testing.T, curve *EllipticCurve, x, y *big.Int, want []byte) {

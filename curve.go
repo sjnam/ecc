@@ -55,7 +55,8 @@ func (ec *EllipticCurve) polynomial(x *big.Int) *big.Int {
 
 // IsOnCurve reports whether the given (x,y) lies on the curve.
 func (ec *EllipticCurve) IsOnCurve(x, y *big.Int) bool {
-	if x.Cmp(ec.P) >= 0 || y.Cmp(ec.P) >= 0 {
+	if x.Sign() < 0 || x.Cmp(ec.P) >= 0 ||
+		y.Sign() < 0 || y.Cmp(ec.P) >= 0 {
 		return false
 	}
 
