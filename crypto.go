@@ -30,58 +30,44 @@ func (ec *EllipticCurve) hashToInt(hash []byte) *big.Int {
 	return ret
 }
 
-// fermatInverse calculates the inverse of k in GF(P) using Fermat's method.
-// This has better constant-time properties than Euclid's method (implemented
-// in math/big.Int.ModInverse) although math/big itself isn't strictly
-// constant-time, so it's not perfect.
-func (ec *EllipticCurve) fermatInverse(k *big.Int) *big.Int {
-	N := ec.N
-	two := big.NewInt(2)
-	nMinus2 := new(big.Int).Sub(N, two)
-	return new(big.Int).Exp(k, nMinus2, N)
-}
-
 // Sign signs a hash (which should be the result of hashing a larger message)
 // using the private key, priv. If the hash is longer than the bit-length of the
 // private key's curve order, the hash will be truncated to that length. It
 // returns the signature as a pair of integers. The security of the private key
 // depends on the entropy of rand.
 func (ec *EllipticCurve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
+	var k []byte
 	N := ec.N
 	s = new(big.Int).SetBytes(priv)
 	z := ec.hashToInt(hash)
-	var k []byte
 
 	for {
 		k, r, _, _ = ec.GenerateKey()
 		s.Mul(r, s)
 		s.Add(s, z)
-		s.Mul(ec.fermatInverse(new(big.Int).SetBytes(k)), s)
+		kInv := new(big.Int).SetBytes(k)
+		s.Mul(s, kInv.ModInverse(kInv, N))
 		s.Mod(s, N)
 		if s.Sign() != 0 {
-			break
+			return
 		}
 	}
-	return
 }
 
 // Verify verifies the signature in r, s of hash using the public key, pub. Its
 // return value records whether the signature is valid.
 func (ec *EllipticCurve) Verify(Hx, Hy *big.Int, hash []byte, r, s *big.Int) bool {
 	N := ec.N
-	z := ec.hashToInt(hash)
-	w := ec.fermatInverse(s)
-
-	u1 := z.Mul(w, z)
+	u1 := ec.hashToInt(hash)
+	u2 := s.ModInverse(s, N)
+	u1.Mul(u2, u1)
 	u1.Mod(u1, N)
-	u2 := w.Mul(w, r)
+	u2.Mul(u2, r)
 	u2.Mod(u2, N)
 
 	x, y := ec.CombinedMult(Hx, Hy, u1.Bytes(), u2.Bytes())
 	if x.Sign() == 0 && y.Sign() == 0 {
 		return false
 	}
-	x.Mod(x, N)
-
-	return x.Cmp(r) == 0
+	return x.Mod(x, N).Cmp(r) == 0
 }
