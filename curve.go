@@ -55,6 +55,11 @@ func (ec *EllipticCurve) polynomial(x *big.Int) *big.Int {
 
 // IsOnCurve reports whether the given (x,y) lies on the curve.
 func (ec *EllipticCurve) IsOnCurve(x, y *big.Int) bool {
+	if x.Sign() < 0 || x.Cmp(ec.P) >= 0 ||
+		y.Sign() < 0 || y.Cmp(ec.P) >= 0 {
+		return false
+	}
+
 	y2 := new(big.Int).Mul(y, y) // y²
 	y2.Mod(y2, ec.P)             // y²%P
 	return ec.polynomial(x).Cmp(y2) == 0
@@ -295,6 +300,37 @@ func (ec *EllipticCurve) GenerateKey() (priv []byte, x, y *big.Int, err error) {
 		x, y = ec.ScalarBaseMult(priv)
 	} else {
 		priv, x, y, err = elliptic.GenerateKey(ec, rand.Reader)
+	}
+	return
+}
+
+// UnmarshalCompressed converts a point, serialized by MarshalCompressed, into
+// an x, y pair. It is an error if the point is not in compressed form, is not
+// on the curve, or is the point at infinity. On error, x = nil.
+func (ec *EllipticCurve) UnmarshalCompressed(data []byte) (x, y *big.Int) {
+	byteLen := (ec.Params().BitSize + 7) / 8
+	if len(data) != 1+byteLen {
+		return nil, nil
+	}
+	if data[0] != 2 && data[0] != 3 { // compressed form
+		return nil, nil
+	}
+	p := ec.P
+	x = new(big.Int).SetBytes(data[1:])
+	if x.Cmp(p) >= 0 {
+		return nil, nil
+	}
+	// y² = x³ - 3x + b
+	y = ec.polynomial(x)
+	y = y.ModSqrt(y, p)
+	if y == nil {
+		return nil, nil
+	}
+	if byte(y.Bit(0)) != data[0]&1 {
+		y.Neg(y).Mod(y, p)
+	}
+	if !ec.IsOnCurve(x, y) {
+		return nil, nil
 	}
 	return
 }
