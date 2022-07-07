@@ -59,9 +59,10 @@ func (ec *EllipticCurve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 		s.Mul(ec.fermatInverse(new(big.Int).SetBytes(k)), s)
 		s.Mod(s, N)
 		if s.Sign() != 0 {
-			return
+			break
 		}
 	}
+	return
 }
 
 // Verify verifies the signature in r, s of hash using the public key, pub. Its
@@ -69,14 +70,17 @@ func (ec *EllipticCurve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 func (ec *EllipticCurve) Verify(Hx, Hy *big.Int, hash []byte, r, s *big.Int) bool {
 	N := ec.N
 	z := ec.hashToInt(hash)
-
 	w := ec.fermatInverse(s)
-	u1 := new(big.Int).Mul(w, z)
+
+	u1 := z.Mul(w, z)
 	u1.Mod(u1, N)
-	u2 := new(big.Int).Mul(w, r)
+	u2 := w.Mul(w, r)
 	u2.Mod(u2, N)
 
-	x, _ := ec.CombinedMult(Hx, Hy, u1.Bytes(), u2.Bytes())
+	x, y := ec.CombinedMult(Hx, Hy, u1.Bytes(), u2.Bytes())
+	if x.Sign() == 0 && y.Sign() == 0 {
+		return false
+	}
 	x.Mod(x, N)
 
 	return x.Cmp(r) == 0
