@@ -160,6 +160,20 @@ func testInfinity(t *testing.T, curve *EllipticCurve) {
 	}
 }
 
+func TestKeyGeneration(t *testing.T) {
+	testAllCurves(t, testKeyGeneration)
+}
+
+func testKeyGeneration(t *testing.T, ec *EllipticCurve) {
+	_, x, y, err := ec.GenerateKey()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !ec.IsOnCurve(x, y) {
+		t.Errorf("public key invalid: %s", err)
+	}
+}
+
 func TestMarshal(t *testing.T) {
 	testAllCurves(t, func(t *testing.T, curve *EllipticCurve) {
 		_, x, y, err := curve.GenerateKey()

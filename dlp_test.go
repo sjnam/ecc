@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestDLP(t *testing.T) {
+func TestECDLP(t *testing.T) {
 	curve := new(EllipticCurve)
 	curve.P = big.NewInt(7919)
 	curve.A = big.NewInt(1001)

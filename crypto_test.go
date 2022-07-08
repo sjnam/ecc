@@ -2,34 +2,42 @@ package ecc
 
 import (
 	"bytes"
-	"crypto/sha512"
 	"testing"
 )
 
-func TestECDH(t *testing.T) {
-	curves := []*EllipticCurve{s256, p224, p256, p384, p521}
-	for _, c := range curves {
-		aPriv, aPubX, aPubY, _ := c.GenerateKey()
-		bPriv, bPubX, bPubY, _ := c.GenerateKey()
+func TestSignAndVerify(t *testing.T) {
+	testAllCurves(t, testSignAndVerify)
+}
 
-		// encryption with ECDH
-		aSharedSecret := c.Encrypt(aPriv, bPubX, bPubY)
-		bSharedSecret := c.Encrypt(bPriv, aPubX, aPubY)
-		if !bytes.Equal(aSharedSecret, bSharedSecret) {
-			t.Errorf("[%s] sharedSecret1: 0x%x\nsharedSecret2: 0x%x",
-				c.Name, aSharedSecret, bSharedSecret)
-		}
+func testSignAndVerify(t *testing.T, ec *EllipticCurve) {
+	priv, pubX, pubY, _ := ec.GenerateKey()
+
+	hashed := []byte("testing")
+	r, s := ec.Sign(priv, hashed)
+
+	if !ec.Verify(pubX, pubY, hashed, r, s) {
+		t.Errorf("Verify failed")
+	}
+
+	hashed[0] ^= 0xff
+	if ec.Verify(pubX, pubY, hashed, r, s) {
+		t.Errorf("Verify always works!")
 	}
 }
 
-func TestECDSA(t *testing.T) {
-	curves := []*EllipticCurve{s256, p224, p256, p384, p521}
-	for _, c := range curves {
-		priv, Hx, Hy, _ := c.GenerateKey()
-		h := sha512.Sum512([]byte("Hello, world."))
-		r, s := c.Sign(priv, h[:])
-		if !c.Verify(Hx, Hy, h[:], r, s) {
-			t.Errorf("[%s] invalid signature", c.Name)
-		}
+func TestECDH(t *testing.T) {
+	testAllCurves(t, testECDH)
+}
+
+func testECDH(t *testing.T, ec *EllipticCurve) {
+	aPriv, aPubX, aPubY, _ := ec.GenerateKey()
+	bPriv, bPubX, bPubY, _ := ec.GenerateKey()
+
+	// encryption with ECDH
+	aSharedSecret := ec.Encrypt(aPriv, bPubX, bPubY)
+	bSharedSecret := ec.Encrypt(bPriv, aPubX, aPubY)
+	if !bytes.Equal(aSharedSecret, bSharedSecret) {
+		t.Errorf("sharedSecret1: 0x%x\nsharedSecret2: 0x%x",
+			aSharedSecret, bSharedSecret)
 	}
 }
