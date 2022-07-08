@@ -68,7 +68,7 @@ func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) int64 {
 		return x, y, a, b
 	}
 
-	for j := 0; j < 3; j++ {
+	for i := 0; i < 10000; i++ {
 		x1, y1, a1, b1 := setup()
 		x2, y2, a2, b2 := setup()
 
@@ -89,9 +89,15 @@ func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) int64 {
 				b2.ModInverse(b2, ec.N)
 				a1.Mul(a1, b2)
 				a1.Mod(a1, ec.N)
-				return a1.Int64()
+
+				tx, ty := ec.ScalarBaseMult(a1.Bytes())
+				if tx.Cmp(hx) == 0 && ty.Cmp(hy) == 0 {
+					return a1.Int64()
+				}
+				break
 			}
 		}
 	}
+
 	return -1
 }
