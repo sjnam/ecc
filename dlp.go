@@ -15,7 +15,7 @@ func (ec *EllipticCurve) Shanks(px, py, hx, hy *big.Int) *big.Int {
 	ss := new(big.Int).Sqrt(ec.N)
 	s := ss.Int64()
 	vx, vy := new(big.Int), new(big.Int)
-	mx, my := ec.ScalarBaseMult(ss.Bytes())
+	mx, my := ec.ScalarMult(px, py, ss.Bytes())
 
 	// Giant step
 	for j := int64(0); j <= ec.N.Int64(); j += s {
@@ -40,12 +40,10 @@ func (ec *EllipticCurve) Shanks(px, py, hx, hy *big.Int) *big.Int {
 
 // PollardRho algorithm for the ECDLP
 func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
-	ec.Gx, ec.Gy = px, py
-
 	f := func(x, y, a, b *big.Int) (*big.Int, *big.Int, *big.Int, *big.Int) {
 		k := new(big.Int).Mod(x, big.NewInt(3)).Int64()
 		if k == 0 { // S1: P+R, a+1, b
-			x, y = ec.Add(ec.Gx, ec.Gy, x, y)
+			x, y = ec.Add(px, py, x, y)
 			a.Add(a, big.NewInt(1))
 			return x, y, a.Mod(a, ec.N), b
 		} else if k == 1 { // S2: 2R, 2a, 2b
@@ -63,7 +61,7 @@ func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	setup := func() (*big.Int, *big.Int, *big.Int, *big.Int) {
 		a, b := new(big.Int).Rand(rnd, ec.N), new(big.Int).Rand(rnd, ec.N)
-		vx, vy := ec.ScalarBaseMult(a.Bytes())
+		vx, vy := ec.ScalarMult(px, py, a.Bytes())
 		ux, uy := ec.ScalarMult(hx, hy, b.Bytes())
 		x, y := ec.Add(vx, vy, ux, uy)
 		return x, y, a, b
@@ -91,7 +89,7 @@ func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
 				a1.Mul(a1, b2)
 				a1.Mod(a1, ec.N)
 
-				tx, ty := ec.ScalarBaseMult(a1.Bytes())
+				tx, ty := ec.ScalarMult(px, py, a1.Bytes())
 				if tx.Cmp(hx) == 0 && ty.Cmp(hy) == 0 {
 					return a1
 				}
@@ -108,7 +106,7 @@ var (
 	ONE  = big.NewInt(1)
 )
 
-func crt(a, n []*big.Int) (*big.Int, error) {
+func CRT(a, n []*big.Int) (*big.Int, error) {
 	p := new(big.Int).Set(n[0])
 	for _, n1 := range n[1:] {
 		p.Mul(p, n1)
