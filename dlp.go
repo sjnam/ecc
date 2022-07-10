@@ -1,7 +1,6 @@
 package ecc
 
 import (
-	"fmt"
 	"math/big"
 	"math/rand"
 	"time"
@@ -67,7 +66,7 @@ func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
 		return x, y, a, b
 	}
 
-	for i := 0; i < 1000000; i++ {
+	for i := 0; i < 100; i++ {
 		x1, y1, a1, b1 := setup()
 		x2, y2, a2, b2 := setup()
 
@@ -101,12 +100,9 @@ func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
 	return new(big.Int)
 }
 
-var (
-	ZERO = big.NewInt(0)
-	ONE  = big.NewInt(1)
-)
+var ONE = big.NewInt(1)
 
-func CRT(a, n []*big.Int) (*big.Int, error) {
+func CRT(a, n []*big.Int) *big.Int {
 	p := new(big.Int).Set(n[0])
 	for _, n1 := range n[1:] {
 		p.Mul(p, n1)
@@ -116,9 +112,9 @@ func CRT(a, n []*big.Int) (*big.Int, error) {
 		q.Div(p, n1)
 		z.GCD(nil, &s, n1, &q)
 		if z.Cmp(ONE) != 0 {
-			return nil, fmt.Errorf("%d not coprime", n1)
+			return nil
 		}
 		x.Add(&x, s.Mul(a[i], s.Mul(&s, &q)))
 	}
-	return x.Mod(&x, p), nil
+	return x.Mod(&x, p)
 }

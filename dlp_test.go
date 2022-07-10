@@ -70,7 +70,7 @@ func TestPohligHellman(t *testing.T) {
 	}
 
 	want, _ := new(big.Int).SetString("152977126447386808276536247114", 10)
-	l, _ := CRT(dLogs, factors)
+	l := CRT(dLogs, factors)
 	if l.Cmp(want) != 0 {
 		t.Errorf("[Pohlig Hellman] want: %d, got: %d", want, l)
 	}
