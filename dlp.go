@@ -1,13 +1,14 @@
 package ecc
 
 import (
+	"fmt"
 	"math/big"
 	"math/rand"
 	"time"
 )
 
 // Shanks Baby-Step Giant-Step algorithm for ECDLP
-func (ec *EllipticCurve) Shanks(px, py, hx, hy *big.Int) int64 {
+func (ec *EllipticCurve) Shanks(px, py, hx, hy *big.Int) *big.Int {
 	ec.Gx, ec.Gy = px, py
 
 	tab := make(map[string]int64)
@@ -30,15 +31,15 @@ func (ec *EllipticCurve) Shanks(px, py, hx, hy *big.Int) int64 {
 	for i := int64(0); i <= s; i++ {
 		k := ec.Marshal(vx, vy)
 		if m, ok := tab[string(k)]; ok {
-			return i + m*s
+			return new(big.Int).SetInt64(i + m*s)
 		}
 		vx, vy = ec.Add(vx, vy, gix, giy)
 	}
-	return -1
+	return new(big.Int)
 }
 
 // PollardRho algorithm for the ECDLP
-func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) int64 {
+func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
 	ec.Gx, ec.Gy = px, py
 
 	f := func(x, y, a, b *big.Int) (*big.Int, *big.Int, *big.Int, *big.Int) {
@@ -68,7 +69,7 @@ func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) int64 {
 		return x, y, a, b
 	}
 
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 1000000; i++ {
 		x1, y1, a1, b1 := setup()
 		x2, y2, a2, b2 := setup()
 
@@ -92,12 +93,34 @@ func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) int64 {
 
 				tx, ty := ec.ScalarBaseMult(a1.Bytes())
 				if tx.Cmp(hx) == 0 && ty.Cmp(hy) == 0 {
-					return a1.Int64()
+					return a1
 				}
 				break
 			}
 		}
 	}
 
-	return -1
+	return new(big.Int)
+}
+
+var (
+	ZERO = big.NewInt(0)
+	ONE  = big.NewInt(1)
+)
+
+func crt(a, n []*big.Int) (*big.Int, error) {
+	p := new(big.Int).Set(n[0])
+	for _, n1 := range n[1:] {
+		p.Mul(p, n1)
+	}
+	var x, q, s, z big.Int
+	for i, n1 := range n {
+		q.Div(p, n1)
+		z.GCD(nil, &s, n1, &q)
+		if z.Cmp(ONE) != 0 {
+			return nil, fmt.Errorf("%d not coprime", n1)
+		}
+		x.Add(&x, s.Mul(a[i], s.Mul(&s, &q)))
+	}
+	return x.Mod(&x, p), nil
 }

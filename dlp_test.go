@@ -17,22 +17,22 @@ func TestECDLP(t *testing.T) {
 	py := big.NewInt(6036)
 
 	cases := []struct {
-		x, y, k int64
+		x, y, k *big.Int
 	}{
-		{1075, 54, 1275},
-		{4135, 3169, 4334},
-		{2599, 759, 3430},
-		{7285, 7905, 4508},
-		{758, 574, 6864},
+		{big.NewInt(1075), big.NewInt(54), big.NewInt(1275)},
+		{big.NewInt(4135), big.NewInt(3169), big.NewInt(4334)},
+		{big.NewInt(2599), big.NewInt(759), big.NewInt(3430)},
+		{big.NewInt(7285), big.NewInt(7905), big.NewInt(4508)},
+		{big.NewInt(758), big.NewInt(574), big.NewInt(6864)},
 	}
 
 	for _, c := range cases {
-		k := curve.Shanks(px, py, big.NewInt(c.x), big.NewInt(c.y))
-		if k == -1 || k != c.k {
+		k := curve.Shanks(px, py, c.x, c.y)
+		if k.Sign() == 0 || k.Cmp(c.k) != 0 {
 			t.Errorf("[Shanks] (%d,%d) want: %d, got: %d", c.x, c.y, c.k, k)
 		}
-		k = curve.PollardRho(px, py, big.NewInt(c.x), big.NewInt(c.y))
-		if k == -1 || k != c.k {
+		k = curve.PollardRho(px, py, c.x, c.y)
+		if k.Sign() == 0 || k.Cmp(c.k) != 0 {
 			t.Errorf("[PollardRho] (%d,%d) want: %d, got: %d", c.x, c.y, c.k, k)
 		}
 	}
