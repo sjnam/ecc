@@ -6,71 +6,42 @@ import (
 	"time"
 )
 
-// Shanks Baby-Step Giant-Step algorithm for ECDLP
-func (ec *EllipticCurve) Shanks(px, py, hx, hy *big.Int) *big.Int {
-	ec.Gx, ec.Gy = px, py
-
-	tab := make(map[string]int64)
-	ss := new(big.Int).Sqrt(ec.N)
-	s := ss.Int64()
-	vx, vy := new(big.Int), new(big.Int)
-	mx, my := ec.ScalarMult(px, py, ss.Bytes())
-
-	// Giant step
-	for j := int64(0); j <= ec.N.Int64(); j += s {
-		k := ec.Marshal(vx, vy)
-		tab[string(k)] = j / s
-		vx, vy = ec.Add(vx, vy, mx, my)
-	}
-
-	vx, vy = vx.Set(hx), vy.Set(hy)
-	gix, giy := new(big.Int).Set(ec.Gx), new(big.Int).Neg(ec.Gy)
-
-	// Baby step
-	for i := int64(0); i <= s; i++ {
-		k := ec.Marshal(vx, vy)
-		if m, ok := tab[string(k)]; ok {
-			return new(big.Int).SetInt64(i + m*s)
-		}
-		vx, vy = ec.Add(vx, vy, gix, giy)
-	}
-	return new(big.Int)
-}
-
 // PollardRho algorithm for the ECDLP
 func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
+	N := ec.N
 	f := func(x, y, a, b *big.Int) (*big.Int, *big.Int, *big.Int, *big.Int) {
 		k := new(big.Int).Mod(x, big.NewInt(3)).Int64()
 		if k == 0 { // S1: P+R, a+1, b
 			x, y = ec.Add(px, py, x, y)
 			a.Add(a, big.NewInt(1))
-			return x, y, a.Mod(a, ec.N), b
+			return x, y, a.Mod(a, N), b
 		} else if k == 1 { // S2: 2R, 2a, 2b
 			x, y = ec.ScalarMult(x, y, big.NewInt(2).Bytes())
 			a.Add(a, a)
 			b.Add(b, b)
-			return x, y, a.Mod(a, ec.N), b.Mod(b, ec.N)
+			return x, y, a.Mod(a, N), b.Mod(b, N)
 		} else { // S3: Q+R, a, b+1
 			x, y = ec.Add(hx, hy, x, y)
 			b.Add(b, big.NewInt(1))
-			return x, y, a, b.Mod(b, ec.N)
+			return x, y, a, b.Mod(b, N)
 		}
 	}
 
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	setup := func() (*big.Int, *big.Int, *big.Int, *big.Int) {
-		a, b := new(big.Int).Rand(rnd, ec.N), new(big.Int).Rand(rnd, ec.N)
+		a, b := new(big.Int).Rand(rnd, N), new(big.Int).Rand(rnd, N)
 		vx, vy := ec.ScalarMult(px, py, a.Bytes())
 		ux, uy := ec.ScalarMult(hx, hy, b.Bytes())
 		x, y := ec.Add(vx, vy, ux, uy)
 		return x, y, a, b
 	}
 
-	for i := 0; i < 100; i++ {
+	one := big.NewInt(1)
+	for i := 0; i < 10000; i++ {
 		x1, y1, a1, b1 := setup()
 		x2, y2, a2, b2 := setup()
 
-		for k := 0; k < int(ec.N.Int64()); k++ {
+		for k := new(big.Int); k.Cmp(N) < 0; k.Add(k, one) {
 			x1, y1, a1, b1 = f(x1, y1, a1, b1)
 			x2, y2, a2, b2 = f(x2, y2, a2, b2)
 			x2, y2, a2, b2 = f(x2, y2, a2, b2)
@@ -81,12 +52,12 @@ func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
 				}
 
 				a1.Sub(a1, a2)
-				a1.Mod(a1, ec.N)
+				a1.Mod(a1, N)
 				b2.Sub(b2, b1)
-				b2.Mod(b2, ec.N)
-				b2.ModInverse(b2, ec.N)
+				b2.Mod(b2, N)
+				b2.ModInverse(b2, N)
 				a1.Mul(a1, b2)
-				a1.Mod(a1, ec.N)
+				a1.Mod(a1, N)
 
 				tx, ty := ec.ScalarMult(px, py, a1.Bytes())
 				if tx.Cmp(hx) == 0 && ty.Cmp(hy) == 0 {
@@ -100,8 +71,6 @@ func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
 	return new(big.Int)
 }
 
-var ONE = big.NewInt(1)
-
 func CRT(a, n []*big.Int) *big.Int {
 	p := new(big.Int).Set(n[0])
 	for _, n1 := range n[1:] {
@@ -111,7 +80,7 @@ func CRT(a, n []*big.Int) *big.Int {
 	for i, n1 := range n {
 		q.Div(p, n1)
 		z.GCD(nil, &s, n1, &q)
-		if z.Cmp(ONE) != 0 {
+		if z.Cmp(big.NewInt(1)) != 0 {
 			return nil
 		}
 		x.Add(&x, s.Mul(a[i], s.Mul(&s, &q)))

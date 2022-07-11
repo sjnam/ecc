@@ -27,11 +27,7 @@ func TestECDLP(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		k := curve.Shanks(px, py, c.x, c.y)
-		if k.Sign() == 0 || k.Cmp(c.k) != 0 {
-			t.Errorf("[Shanks] (%d,%d) want: %d, got: %d", c.x, c.y, c.k, k)
-		}
-		k = curve.PollardRho(px, py, c.x, c.y)
+		k := curve.PollardRho(px, py, c.x, c.y)
 		if k.Sign() == 0 || k.Cmp(c.k) != 0 {
 			t.Errorf("[PollardRho] (%d,%d) want: %d, got: %d", c.x, c.y, c.k, k)
 		}
