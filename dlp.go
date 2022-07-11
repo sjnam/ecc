@@ -7,21 +7,21 @@ import (
 )
 
 // PollardRho algorithm for the ECDLP
-func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
-	N := ec.N
+func (c *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
+	N := c.N
 	f := func(x, y, a, b *big.Int) (*big.Int, *big.Int, *big.Int, *big.Int) {
 		k := new(big.Int).Mod(x, big.NewInt(3)).Int64()
 		if k == 0 { // S1: P+R, a+1, b
-			x, y = ec.Add(px, py, x, y)
+			x, y = c.Add(px, py, x, y)
 			a.Add(a, big.NewInt(1))
 			return x, y, a.Mod(a, N), b
 		} else if k == 1 { // S2: 2R, 2a, 2b
-			x, y = ec.ScalarMult(x, y, big.NewInt(2).Bytes())
+			x, y = c.ScalarMult(x, y, big.NewInt(2).Bytes())
 			a.Add(a, a)
 			b.Add(b, b)
 			return x, y, a.Mod(a, N), b.Mod(b, N)
 		} else { // S3: Q+R, a, b+1
-			x, y = ec.Add(hx, hy, x, y)
+			x, y = c.Add(hx, hy, x, y)
 			b.Add(b, big.NewInt(1))
 			return x, y, a, b.Mod(b, N)
 		}
@@ -30,9 +30,9 @@ func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
 	rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 	setup := func() (*big.Int, *big.Int, *big.Int, *big.Int) {
 		a, b := new(big.Int).Rand(rnd, N), new(big.Int).Rand(rnd, N)
-		vx, vy := ec.ScalarMult(px, py, a.Bytes())
-		ux, uy := ec.ScalarMult(hx, hy, b.Bytes())
-		x, y := ec.Add(vx, vy, ux, uy)
+		vx, vy := c.ScalarMult(px, py, a.Bytes())
+		ux, uy := c.ScalarMult(hx, hy, b.Bytes())
+		x, y := c.Add(vx, vy, ux, uy)
 		return x, y, a, b
 	}
 
@@ -53,7 +53,7 @@ func (ec *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
 				b2.ModInverse(b2, N)
 				a1.Mul(a1, b2)
 				a1.Mod(a1, N)
-				tx, ty := ec.ScalarMult(px, py, a1.Bytes())
+				tx, ty := c.ScalarMult(px, py, a1.Bytes())
 				if tx.Cmp(hx) == 0 && ty.Cmp(hy) == 0 {
 					return a1
 				}

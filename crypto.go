@@ -3,9 +3,9 @@ package ecc
 import "math/big"
 
 // Encrypt encrypts with ECDH
-func (ec *EllipticCurve) Encrypt(priv []byte, pubX, pubY *big.Int) []byte {
-	ssx, ssy := ec.ScalarMult(pubX, pubY, priv)
-	return ec.Marshal(ssx, ssy)
+func (c *EllipticCurve) Encrypt(priv []byte, pubX, pubY *big.Int) []byte {
+	ssx, ssy := c.ScalarMult(pubX, pubY, priv)
+	return c.Marshal(ssx, ssy)
 }
 
 // hashToInt converts a hash value to an integer. There is some disagreement
@@ -14,8 +14,8 @@ func (ec *EllipticCurve) Encrypt(priv []byte, pubX, pubY *big.Int) []byte {
 // first. We follow [SECG] because that's what OpenSSL does. Additionally,
 // OpenSSL right shifts excess bits from the number if the hash is too large,
 // and we mirror that too.
-func (ec *EllipticCurve) hashToInt(hash []byte) *big.Int {
-	orderBits := ec.BitSize
+func (c *EllipticCurve) hashToInt(hash []byte) *big.Int {
+	orderBits := c.BitSize
 	orderBytes := (orderBits + 7) / 8
 	if len(hash) > orderBytes {
 		hash = hash[:orderBytes]
@@ -35,14 +35,14 @@ func (ec *EllipticCurve) hashToInt(hash []byte) *big.Int {
 // private key's curve order, the hash will be truncated to that length. It
 // returns the signature as a pair of integers. The security of the private key
 // depends on the entropy of rand.
-func (ec *EllipticCurve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
+func (c *EllipticCurve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 	var k []byte
-	N := ec.N
+	N := c.N
 	s = new(big.Int).SetBytes(priv)
-	z := ec.hashToInt(hash)
+	z := c.hashToInt(hash)
 
 	for {
-		k, r, _, _ = ec.GenerateKey()
+		k, r, _, _ = c.GenerateKey()
 		s.Mul(r, s)
 		s.Add(s, z)
 		kInv := new(big.Int).SetBytes(k)
@@ -56,16 +56,16 @@ func (ec *EllipticCurve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 
 // Verify verifies the signature in r, s of hash using the public key, pub. Its
 // return value records whether the signature is valid.
-func (ec *EllipticCurve) Verify(Hx, Hy *big.Int, hash []byte, r, s *big.Int) bool {
-	N := ec.N
-	u1 := ec.hashToInt(hash)
+func (c *EllipticCurve) Verify(Hx, Hy *big.Int, hash []byte, r, s *big.Int) bool {
+	N := c.N
+	u1 := c.hashToInt(hash)
 	u2 := s.ModInverse(s, N)
 	u1.Mul(u2, u1)
 	u1.Mod(u1, N)
 	u2.Mul(u2, r)
 	u2.Mod(u2, N)
 
-	x, y := ec.CombinedMult(Hx, Hy, u1.Bytes(), u2.Bytes())
+	x, y := c.CombinedMult(Hx, Hy, u1.Bytes(), u2.Bytes())
 	if x.Sign() == 0 && y.Sign() == 0 {
 		return false
 	}

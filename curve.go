@@ -31,38 +31,38 @@ type EllipticCurve struct {
 }
 
 // Params returns the parameters for the curve.
-func (ec *EllipticCurve) Params() *elliptic.CurveParams {
+func (c *EllipticCurve) Params() *elliptic.CurveParams {
 	return &elliptic.CurveParams{
-		P:       ec.P,
-		N:       ec.N,
-		B:       ec.B,
-		Gx:      ec.Gx,
-		Gy:      ec.Gy,
-		BitSize: ec.BitSize,
-		Name:    ec.Name,
+		P:       c.P,
+		N:       c.N,
+		B:       c.B,
+		Gx:      c.Gx,
+		Gy:      c.Gy,
+		BitSize: c.BitSize,
+		Name:    c.Name,
 	}
 }
 
 // polynomial returns y² = x³ + Ax + B.
-func (ec *EllipticCurve) polynomial(x *big.Int) *big.Int {
-	x3 := new(big.Int).Mul(x, x)          // x²
-	x3.Mul(x3, x)                         // x³
-	x3.Add(x3, new(big.Int).Mul(x, ec.A)) // x³+AX
-	x3.Add(x3, ec.B)                      // x³+AX+B
-	x3.Mod(x3, ec.P)                      //(x³+AX+B)%P
+func (c *EllipticCurve) polynomial(x *big.Int) *big.Int {
+	x3 := new(big.Int).Mul(x, x)         // x²
+	x3.Mul(x3, x)                        // x³
+	x3.Add(x3, new(big.Int).Mul(x, c.A)) // x³+AX
+	x3.Add(x3, c.B)                      // x³+AX+B
+	x3.Mod(x3, c.P)                      //(x³+AX+B)%P
 	return x3
 }
 
 // IsOnCurve reports whether the given (x,y) lies on the curve.
-func (ec *EllipticCurve) IsOnCurve(x, y *big.Int) bool {
-	if x.Sign() < 0 || x.Cmp(ec.P) >= 0 ||
-		y.Sign() < 0 || y.Cmp(ec.P) >= 0 {
+func (c *EllipticCurve) IsOnCurve(x, y *big.Int) bool {
+	if x.Sign() < 0 || x.Cmp(c.P) >= 0 ||
+		y.Sign() < 0 || y.Cmp(c.P) >= 0 {
 		return false
 	}
 
 	y2 := new(big.Int).Mul(y, y) // y²
-	y2.Mod(y2, ec.P)             // y²%P
-	return ec.polynomial(x).Cmp(y2) == 0
+	y2.Mod(y2, c.P)              // y²%P
+	return c.polynomial(x).Cmp(y2) == 0
 }
 
 // zForAffine returns a Jacobian Z value for the affine point (x, y). If x and
@@ -78,33 +78,33 @@ func zForAffine(x, y *big.Int) *big.Int {
 
 // affineFromJacobian reverses the Jacobian transform. See the comment at the
 // top of the file.
-func (ec *EllipticCurve) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.Int) {
+func (c *EllipticCurve) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.Int) {
 	if z.Sign() == 0 {
 		return new(big.Int), new(big.Int)
 	}
 
-	zInv := new(big.Int).ModInverse(z, ec.P)
+	zInv := new(big.Int).ModInverse(z, c.P)
 	zInvSq := new(big.Int).Mul(zInv, zInv)
 	xOut = new(big.Int).Mul(x, zInvSq)
-	xOut.Mod(xOut, ec.P)
+	xOut.Mod(xOut, c.P)
 	zInvSq.Mul(zInvSq, zInv)
 	yOut = new(big.Int).Mul(y, zInvSq)
-	yOut.Mod(yOut, ec.P)
+	yOut.Mod(yOut, c.P)
 	return
 }
 
 // Add returns the sum of (x1,y1) and (x2,y2)
-func (ec *EllipticCurve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
+func (c *EllipticCurve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 	z1 := zForAffine(x1, y1)
 	z2 := zForAffine(x2, y2)
-	return ec.affineFromJacobian(ec.addJacobian(x1, y1, z1, x2, y2, z2))
+	return c.affineFromJacobian(c.addJacobian(x1, y1, z1, x2, y2, z2))
 }
 
 // addJacobian takes two points in Jacobian coordinates, (x1, y1, z1) and
 // (x2, y2, z2) and returns their sum, also in Jacobian form.
-func (ec *EllipticCurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (x3, y3, z3 *big.Int) {
+func (c *EllipticCurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (x3, y3, z3 *big.Int) {
 	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#addition-add-2007-bl
-	P := ec.P
+	P := c.P
 	x3, y3, z3 = new(big.Int), new(big.Int), new(big.Int)
 	if z1.Sign() == 0 {
 		x3.Set(x2)
@@ -149,7 +149,7 @@ func (ec *EllipticCurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (x3, y3, z
 	}
 	yEqual := r.Sign() == 0
 	if xEqual && yEqual {
-		return ec.doubleJacobian(x1, y1, z1)
+		return c.doubleJacobian(x1, y1, z1)
 	}
 	r.Lsh(r, 1)
 	v := new(big.Int).Mul(u1, i)
@@ -186,16 +186,16 @@ func (ec *EllipticCurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (x3, y3, z
 }
 
 // Double returns 2*(x,y)
-func (ec *EllipticCurve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
+func (c *EllipticCurve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 	z1 := zForAffine(x1, y1)
-	return ec.affineFromJacobian(ec.doubleJacobian(x1, y1, z1))
+	return c.affineFromJacobian(c.doubleJacobian(x1, y1, z1))
 }
 
 // doubleJacobian takes a point in Jacobian coordinates, (x, y, z), and
 // returns its double, also in Jacobian form.
-func (ec *EllipticCurve) doubleJacobian(x, y, z *big.Int) (x3, y3, z3 *big.Int) {
+func (c *EllipticCurve) doubleJacobian(x, y, z *big.Int) (x3, y3, z3 *big.Int) {
 	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
-	P := ec.P
+	P := c.P
 	xx := new(big.Int).Mul(x, x) // X1²
 	xx.Mod(xx, P)
 	yy := new(big.Int).Mul(y, y) // Y1²
@@ -220,9 +220,9 @@ func (ec *EllipticCurve) doubleJacobian(x, y, z *big.Int) (x3, y3, z3 *big.Int) 
 	s.Lsh(s, 1) // 2*((X1+B)²-XX-YYYY)
 	s.Mod(s, P)
 
-	m := new(big.Int).Lsh(xx, 1)   // 2*XX
-	m.Add(m, xx)                   // 3*XX
-	m.Add(m, zzzz.Mul(ec.A, zzzz)) // 3*XX+A*ZZ²
+	m := new(big.Int).Lsh(xx, 1)  // 2*XX
+	m.Add(m, xx)                  // 3*XX
+	m.Add(m, zzzz.Mul(c.A, zzzz)) // 3*XX+A*ZZ²
 	m.Mod(m, P)
 
 	t := new(big.Int).Mul(m, m)      // M²
@@ -259,47 +259,47 @@ func (ec *EllipticCurve) doubleJacobian(x, y, z *big.Int) (x3, y3, z3 *big.Int) 
 }
 
 // ScalarMult returns k*(Bx,By) where k is a number in big-endian form.
-func (ec *EllipticCurve) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
+func (c *EllipticCurve) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
 	Bz := new(big.Int).SetInt64(1)
 	x, y, z := new(big.Int), new(big.Int), new(big.Int)
 	for _, b := range k {
 		for bitNum := 0; bitNum < 8; bitNum++ {
-			x, y, z = ec.doubleJacobian(x, y, z)
+			x, y, z = c.doubleJacobian(x, y, z)
 			if b&0x80 == 0x80 {
-				x, y, z = ec.addJacobian(Bx, By, Bz, x, y, z)
+				x, y, z = c.addJacobian(Bx, By, Bz, x, y, z)
 			}
 			b <<= 1
 		}
 	}
-	return ec.affineFromJacobian(x, y, z)
+	return c.affineFromJacobian(x, y, z)
 }
 
 // ScalarBaseMult returns k*G, where G is the base point of the group and k is
 // an integer in big-endian form.
-func (ec *EllipticCurve) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
-	return ec.ScalarMult(ec.Gx, ec.Gy, k)
+func (c *EllipticCurve) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
+	return c.ScalarMult(c.Gx, c.Gy, k)
 }
 
 // CombinedMult implements fast multiplication
 // S1*g + S2*p (g - generator, p - arbitrary point)
-func (ec *EllipticCurve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
-	x1, y1 := ec.ScalarBaseMult(baseScalar)
-	x2, y2 := ec.ScalarMult(bigX, bigY, scalar)
-	return ec.Add(x1, y1, x2, y2)
+func (c *EllipticCurve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
+	x1, y1 := c.ScalarBaseMult(baseScalar)
+	x2, y2 := c.ScalarMult(bigX, bigY, scalar)
+	return c.Add(x1, y1, x2, y2)
 }
 
 // GenerateKey returns a public/private key pair.
-func (ec *EllipticCurve) GenerateKey() (priv []byte, x, y *big.Int, err error) {
+func (c *EllipticCurve) GenerateKey() (priv []byte, x, y *big.Int, err error) {
 	var k *big.Int
-	if ec.N.BitLen() < 9 {
-		k, err = rand.Int(rand.Reader, ec.N)
+	if c.N.BitLen() < 9 {
+		k, err = rand.Int(rand.Reader, c.N)
 		if err != nil {
 			return
 		}
 		priv = k.Bytes()
-		x, y = ec.ScalarBaseMult(priv)
+		x, y = c.ScalarBaseMult(priv)
 	} else {
-		priv, x, y, err = elliptic.GenerateKey(ec, rand.Reader)
+		priv, x, y, err = elliptic.GenerateKey(c, rand.Reader)
 	}
 	return
 }
@@ -307,8 +307,8 @@ func (ec *EllipticCurve) GenerateKey() (priv []byte, x, y *big.Int, err error) {
 // Marshal converts a point on the curve into the uncompressed form specified in
 // SEC 1, Version 2.0, Section 2.3.3. If the point is not on the curve (or is
 // the conventional point at infinity), the behavior is undefined.
-func (ec *EllipticCurve) Marshal(x, y *big.Int) []byte {
-	byteLen := (ec.BitSize + 7) / 8
+func (c *EllipticCurve) Marshal(x, y *big.Int) []byte {
+	byteLen := (c.BitSize + 7) / 8
 
 	ret := make([]byte, 1+2*byteLen)
 	ret[0] = 4 // uncompressed point
@@ -322,8 +322,8 @@ func (ec *EllipticCurve) Marshal(x, y *big.Int) []byte {
 // MarshalCompressed converts a point on the curve into the compressed form
 // specified in SEC 1, Version 2.0, Section 2.3.3. If the point is not on the
 // curve (or is the conventional point at infinity), the behavior is undefined.
-func (ec *EllipticCurve) MarshalCompressed(x, y *big.Int) []byte {
-	byteLen := (ec.BitSize + 7) / 8
+func (c *EllipticCurve) MarshalCompressed(x, y *big.Int) []byte {
+	byteLen := (c.BitSize + 7) / 8
 	compressed := make([]byte, 1+byteLen)
 	compressed[0] = byte(y.Bit(0)) | 2
 	x.FillBytes(compressed[1:])
@@ -333,21 +333,21 @@ func (ec *EllipticCurve) MarshalCompressed(x, y *big.Int) []byte {
 // Unmarshal converts a point, serialized by Marshal, into an x, y pair. It is
 // an error if the point is not in uncompressed form, is not on the curve, or is
 // the point at infinity. On error, x = nil.
-func (ec *EllipticCurve) Unmarshal(data []byte) (x, y *big.Int) {
-	byteLen := (ec.BitSize + 7) / 8
+func (c *EllipticCurve) Unmarshal(data []byte) (x, y *big.Int) {
+	byteLen := (c.BitSize + 7) / 8
 	if len(data) != 1+2*byteLen {
 		return nil, nil
 	}
 	if data[0] != 4 { // uncompressed form
 		return nil, nil
 	}
-	p := ec.P
+	p := c.P
 	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
 	y = new(big.Int).SetBytes(data[1+byteLen:])
 	if x.Cmp(p) >= 0 || y.Cmp(p) >= 0 {
 		return nil, nil
 	}
-	if !ec.IsOnCurve(x, y) {
+	if !c.IsOnCurve(x, y) {
 		return nil, nil
 	}
 	return
@@ -356,21 +356,21 @@ func (ec *EllipticCurve) Unmarshal(data []byte) (x, y *big.Int) {
 // UnmarshalCompressed converts a point, serialized by MarshalCompressed, into
 // an x, y pair. It is an error if the point is not in compressed form, is not
 // on the curve, or is the point at infinity. On error, x = nil.
-func (ec *EllipticCurve) UnmarshalCompressed(data []byte) (x, y *big.Int) {
-	byteLen := (ec.BitSize + 7) / 8
+func (c *EllipticCurve) UnmarshalCompressed(data []byte) (x, y *big.Int) {
+	byteLen := (c.BitSize + 7) / 8
 	if len(data) != 1+byteLen {
 		return nil, nil
 	}
 	if data[0] != 2 && data[0] != 3 { // compressed form
 		return nil, nil
 	}
-	p := ec.P
+	p := c.P
 	x = new(big.Int).SetBytes(data[1:])
 	if x.Cmp(p) >= 0 {
 		return nil, nil
 	}
 	// y² = x³ - 3x + b
-	y = ec.polynomial(x)
+	y = c.polynomial(x)
 	y = y.ModSqrt(y, p)
 	if y == nil {
 		return nil, nil
@@ -378,7 +378,7 @@ func (ec *EllipticCurve) UnmarshalCompressed(data []byte) (x, y *big.Int) {
 	if byte(y.Bit(0)) != data[0]&1 {
 		y.Neg(y).Mod(y, p)
 	}
-	if !ec.IsOnCurve(x, y) {
+	if !c.IsOnCurve(x, y) {
 		return nil, nil
 	}
 	return
