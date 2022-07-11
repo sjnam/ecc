@@ -369,7 +369,6 @@ func (c *EllipticCurve) UnmarshalCompressed(data []byte) (x, y *big.Int) {
 	if x.Cmp(p) >= 0 {
 		return nil, nil
 	}
-	// y² = x³ - 3x + b
 	y = c.polynomial(x)
 	y = y.ModSqrt(y, p)
 	if y == nil {
