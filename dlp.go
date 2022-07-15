@@ -71,8 +71,8 @@ func (c *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
 
 // Chinese remainder theorem
 func crt(a, n []*big.Int) *big.Int {
-	p := new(big.Int).Set(n[0])
-	for _, n1 := range n[1:] {
+	p := big.NewInt(1)
+	for _, n1 := range n {
 		p.Mul(p, n1)
 	}
 	var x, q, s, z big.Int
