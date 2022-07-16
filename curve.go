@@ -95,6 +95,9 @@ func (c *EllipticCurve) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.In
 
 // Add returns the sum of (x1,y1) and (x2,y2)
 func (c *EllipticCurve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
+	panicIfNotOnCurve(c, x1, y1)
+	panicIfNotOnCurve(c, x2, y2)
+
 	z1 := zForAffine(x1, y1)
 	z2 := zForAffine(x2, y2)
 	return c.affineFromJacobian(c.addJacobian(x1, y1, z1, x2, y2, z2))
@@ -119,31 +122,34 @@ func (c *EllipticCurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (x3, y3, z3
 		return
 	}
 
-	z1z1 := new(big.Int).Mul(z1, z1)
+	z1z1 := new(big.Int).Mul(z1, z1) // Z1Z1 = Z1²
 	z1z1.Mod(z1z1, P)
-	z2z2 := new(big.Int).Mul(z2, z2)
+	z2z2 := new(big.Int).Mul(z2, z2) // Z2Z2 = Z2²
 	z2z2.Mod(z2z2, P)
 
-	u1 := new(big.Int).Mul(x1, z2z2)
+	u1 := new(big.Int).Mul(x1, z2z2) // U1 = X1*Z2Z2
 	u1.Mod(u1, P)
-	u2 := new(big.Int).Mul(x2, z1z1)
+	u2 := new(big.Int).Mul(x2, z1z1) // U2 = X2*Z1Z1
 	u2.Mod(u2, P)
-	h := new(big.Int).Sub(u2, u1)
+
+	s1 := new(big.Int).Mul(y1, z2) // S1 = Y1*Z2*Z2Z2
+	s1.Mul(s1, z2z2)
+	s1.Mod(s1, P)
+	s2 := new(big.Int).Mul(y2, z1) // S2 = Y2*Z1*Z1Z1
+	s2.Mul(s2, z1z1)
+	s2.Mod(s2, P)
+
+	h := new(big.Int).Sub(u2, u1) // H = U2-U1
 	xEqual := h.Sign() == 0
 	if h.Sign() == -1 {
 		h.Add(h, P)
 	}
-	i := new(big.Int).Lsh(h, 1)
-	i.Mul(i, i)
-	j := new(big.Int).Mul(h, i)
 
-	s1 := new(big.Int).Mul(y1, z2)
-	s1.Mul(s1, z2z2)
-	s1.Mod(s1, P)
-	s2 := new(big.Int).Mul(y2, z1)
-	s2.Mul(s2, z1z1)
-	s2.Mod(s2, P)
-	r := new(big.Int).Sub(s2, s1)
+	i := new(big.Int).Lsh(h, 1) // I = (2*H)2
+	i.Mul(i, i)
+	j := new(big.Int).Mul(h, i) // J = H*I
+
+	r := new(big.Int).Sub(s2, s1) // r = 2*(S2-S1)
 	if r.Sign() == -1 {
 		r.Add(r, P)
 	}
@@ -152,16 +158,17 @@ func (c *EllipticCurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (x3, y3, z3
 		return c.doubleJacobian(x1, y1, z1)
 	}
 	r.Lsh(r, 1)
-	v := new(big.Int).Mul(u1, i)
 
-	x3.Set(r)
+	v := new(big.Int).Mul(u1, i) // V = U1*I
+
+	x3.Set(r) // X3 = r2-J-2*V
 	x3.Mul(x3, x3)
 	x3.Sub(x3, j)
 	x3.Sub(x3, v)
 	x3.Sub(x3, v)
 	x3.Mod(x3, P)
 
-	y3.Set(r)
+	y3.Set(r) // Y3 = r*(V-X3)-2*S1*J
 	v.Sub(v, x3)
 	y3.Mul(y3, v)
 	s1.Mul(s1, j)
@@ -169,7 +176,7 @@ func (c *EllipticCurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (x3, y3, z3
 	y3.Sub(y3, s1)
 	y3.Mod(y3, P)
 
-	z3.Add(z1, z2)
+	z3.Add(z1, z2) // Z3 = ((Z1+Z2)2-Z1Z1-Z2Z2)*H
 	z3.Mul(z3, z3)
 	z3.Sub(z3, z1z1)
 	if z3.Sign() == -1 {
@@ -187,6 +194,8 @@ func (c *EllipticCurve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (x3, y3, z3
 
 // Double returns 2*(x,y)
 func (c *EllipticCurve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
+	panicIfNotOnCurve(c, x1, y1)
+
 	z1 := zForAffine(x1, y1)
 	return c.affineFromJacobian(c.doubleJacobian(x1, y1, z1))
 }
@@ -196,28 +205,28 @@ func (c *EllipticCurve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 func (c *EllipticCurve) doubleJacobian(x, y, z *big.Int) (x3, y3, z3 *big.Int) {
 	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
 	P := c.P
-	xx := new(big.Int).Mul(x, x) // X1²
+	xx := new(big.Int).Mul(x, x) // XX = X1²
 	xx.Mod(xx, P)
-	yy := new(big.Int).Mul(y, y) // Y1²
+	yy := new(big.Int).Mul(y, y) // YY = Y1²
 	yy.Mod(yy, P)
-	yyyy := new(big.Int).Mul(yy, yy) // YY²
+	yyyy := new(big.Int).Mul(yy, yy) // YYYY = YY²
 	yyyy.Mod(yyyy, P)
-	zz := new(big.Int).Mul(z, z) // Z1²
+	zz := new(big.Int).Mul(z, z) // ZZ = Z1²
 	zz.Mod(zz, P)
 	zzzz := new(big.Int).Mul(zz, zz) // ZZ²
 	zzzz.Mod(zzzz, P)
 
 	s := new(big.Int).Add(x, yy) // X1+YY
 	s.Mul(s, s)                  //(X1+YY)²
-	s.Sub(s, xx)                 //(X1+B)²-XX
+	s.Sub(s, xx)                 //(X1+YY)²-XX
 	if s.Sign() == -1 {
 		s.Add(s, P)
 	}
-	s.Sub(s, yyyy) //(X1+B)²-XX-YYYY
+	s.Sub(s, yyyy) //(X1+YY)²-XX-YYYY
 	if s.Sign() == -1 {
 		s.Add(s, P)
 	}
-	s.Lsh(s, 1) // 2*((X1+B)²-XX-YYYY)
+	s.Lsh(s, 1) // 2*((X1+YY)²-XX-YYYY)
 	s.Mod(s, P)
 
 	m := new(big.Int).Lsh(xx, 1)  // 2*XX
@@ -260,6 +269,8 @@ func (c *EllipticCurve) doubleJacobian(x, y, z *big.Int) (x3, y3, z3 *big.Int) {
 
 // ScalarMult returns k*(Bx,By) where k is a number in big-endian form.
 func (c *EllipticCurve) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
+	panicIfNotOnCurve(c, Bx, By)
+
 	Bz := new(big.Int).SetInt64(1)
 	x, y, z := new(big.Int), new(big.Int), new(big.Int)
 	for _, b := range k {
@@ -308,6 +319,8 @@ func (c *EllipticCurve) GenerateKey() (priv []byte, x, y *big.Int, err error) {
 // SEC 1, Version 2.0, Section 2.3.3. If the point is not on the curve (or is
 // the conventional point at infinity), the behavior is undefined.
 func (c *EllipticCurve) Marshal(x, y *big.Int) []byte {
+	panicIfNotOnCurve(c, x, y)
+
 	byteLen := (c.BitSize + 7) / 8
 
 	ret := make([]byte, 1+2*byteLen)
@@ -323,6 +336,8 @@ func (c *EllipticCurve) Marshal(x, y *big.Int) []byte {
 // specified in SEC 1, Version 2.0, Section 2.3.3. If the point is not on the
 // curve (or is the conventional point at infinity), the behavior is undefined.
 func (c *EllipticCurve) MarshalCompressed(x, y *big.Int) []byte {
+	panicIfNotOnCurve(c, x, y)
+
 	byteLen := (c.BitSize + 7) / 8
 	compressed := make([]byte, 1+byteLen)
 	compressed[0] = byte(y.Bit(0)) | 2
@@ -381,4 +396,16 @@ func (c *EllipticCurve) UnmarshalCompressed(data []byte) (x, y *big.Int) {
 		return nil, nil
 	}
 	return
+}
+
+func panicIfNotOnCurve(curve *EllipticCurve, x, y *big.Int) {
+	// (0, 0) is the point at infinity by convention. It's ok to operate on it,
+	// although IsOnCurve is documented to return false for it. See Issue 37294.
+	if x.Sign() == 0 && y.Sign() == 0 {
+		return
+	}
+
+	if !curve.IsOnCurve(x, y) {
+		panic("crypto/elliptic: attempted operation on invalid point")
+	}
 }

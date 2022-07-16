@@ -33,7 +33,7 @@ func TestECDLP(t *testing.T) {
 		}
 		k = curve.PohligHellman(px, py, c.x, c.y)
 		if k.Sign() == 0 || k.Cmp(c.k) != 0 {
-			t.Errorf("[PollardRho] (%d,%d) want: %d, got: %d", c.x, c.y, c.k, k)
+			t.Errorf("[PohligHellman] (%d,%d) want: %d, got: %d", c.x, c.y, c.k, k)
 		}
 	}
 }
