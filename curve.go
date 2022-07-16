@@ -11,7 +11,6 @@ package ecc
 
 import (
 	"crypto/elliptic"
-	"io"
 	"math/big"
 )
 
@@ -300,38 +299,6 @@ func (c *Curve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x,
 	x1, y1 := c.ScalarBaseMult(baseScalar)
 	x2, y2 := c.ScalarMult(bigX, bigY, scalar)
 	return c.Add(x1, y1, x2, y2)
-}
-
-var mask = []byte{0xff, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f}
-
-// GenerateKey returns a public/private key pair. The private key is
-// generated using the given reader, which must return random data.
-func (c *Curve) GenerateKey(rand io.Reader) (priv []byte, x, y *big.Int, err error) {
-	N := c.Params().N
-	bitSize := N.BitLen()
-	byteLen := (bitSize + 7) / 8
-	priv = make([]byte, byteLen)
-
-	for x == nil {
-		_, err = io.ReadFull(rand, priv)
-		if err != nil {
-			return
-		}
-		// We have to mask off any excess bits in the case that the size of the
-		// underlying field is not a whole number of bytes.
-		priv[0] &= mask[bitSize%8]
-		// This is because, in tests, rand will return all zeros and we don't
-		// want to get the point at infinity and loop forever.
-		priv[1] ^= 0x42
-
-		// If the scalar is out of range, sample another random number.
-		if new(big.Int).SetBytes(priv).Cmp(N) >= 0 {
-			continue
-		}
-
-		x, y = c.ScalarBaseMult(priv)
-	}
-	return
 }
 
 // Marshal converts a point on the curve into the uncompressed form specified in
