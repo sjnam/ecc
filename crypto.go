@@ -6,7 +6,7 @@ import (
 )
 
 // Encrypt encrypts with ECDH
-func (c *EllipticCurve) Encrypt(priv []byte, pubX, pubY *big.Int) []byte {
+func (c *Curve) Encrypt(priv []byte, pubX, pubY *big.Int) []byte {
 	ssx, ssy := c.ScalarMult(pubX, pubY, priv)
 	return c.Marshal(ssx, ssy)
 }
@@ -17,7 +17,7 @@ func (c *EllipticCurve) Encrypt(priv []byte, pubX, pubY *big.Int) []byte {
 // first. We follow [SECG] because that's what OpenSSL does. Additionally,
 // OpenSSL right shifts excess bits from the number if the hash is too large,
 // and we mirror that too.
-func (c *EllipticCurve) hashToInt(hash []byte) *big.Int {
+func (c *Curve) hashToInt(hash []byte) *big.Int {
 	orderBits := c.BitSize
 	orderBytes := (orderBits + 7) / 8
 	if len(hash) > orderBytes {
@@ -38,7 +38,7 @@ func (c *EllipticCurve) hashToInt(hash []byte) *big.Int {
 // private key's curve order, the hash will be truncated to that length. It
 // returns the signature as a pair of integers. The security of the private key
 // depends on the entropy of rand.
-func (c *EllipticCurve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
+func (c *Curve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 	var k []byte
 	N := c.N
 	s = new(big.Int).SetBytes(priv)
@@ -59,7 +59,7 @@ func (c *EllipticCurve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 
 // Verify verifies the signature in r, s of hash using the public key, pub. Its
 // return value records whether the signature is valid.
-func (c *EllipticCurve) Verify(Hx, Hy *big.Int, hash []byte, r, s *big.Int) bool {
+func (c *Curve) Verify(Hx, Hy *big.Int, hash []byte, r, s *big.Int) bool {
 	N := c.N
 	u1 := c.hashToInt(hash)
 	u2 := s.ModInverse(s, N)

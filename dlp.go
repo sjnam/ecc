@@ -8,7 +8,7 @@ import (
 )
 
 // PollardRho algorithm for the ECDLP
-func (c *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
+func (c *Curve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
 	N := c.N
 
 	f := func(x, y, a, b *big.Int) (*big.Int, *big.Int, *big.Int, *big.Int) {
@@ -68,7 +68,7 @@ func (c *EllipticCurve) PollardRho(px, py, hx, hy *big.Int) *big.Int {
 }
 
 // PohligHellman algorithm for the ECDLP
-func (c *EllipticCurve) PohligHellman(px, py, hx, hy *big.Int) *big.Int {
+func (c *Curve) PohligHellman(px, py, hx, hy *big.Int) *big.Int {
 	N := new(big.Int).Set(c.N)
 	factors := factorize(N)
 	sort.SliceStable(factors, func(i, j int) bool {

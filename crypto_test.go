@@ -10,7 +10,7 @@ func TestSignAndVerify(t *testing.T) {
 	testAllCurves(t, testSignAndVerify)
 }
 
-func testSignAndVerify(t *testing.T, ec *EllipticCurve) {
+func testSignAndVerify(t *testing.T, ec *Curve) {
 	priv, pubX, pubY, _ := ec.GenerateKey(rand.Reader)
 
 	hashed := []byte("testing")
@@ -30,7 +30,7 @@ func TestECDH(t *testing.T) {
 	testAllCurves(t, testECDH)
 }
 
-func testECDH(t *testing.T, ec *EllipticCurve) {
+func testECDH(t *testing.T, ec *Curve) {
 	aPriv, aPubX, aPubY, _ := ec.GenerateKey(rand.Reader)
 	bPriv, bPubX, bPubY, _ := ec.GenerateKey(rand.Reader)
 

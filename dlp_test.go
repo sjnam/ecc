@@ -6,7 +6,7 @@ import (
 )
 
 func TestECDLP(t *testing.T) {
-	curve := new(EllipticCurve)
+	curve := new(Curve)
 	curve.P = big.NewInt(7919)
 	curve.A = big.NewInt(1001)
 	curve.B = big.NewInt(75)
@@ -40,7 +40,7 @@ func TestECDLP(t *testing.T) {
 
 func TestPohligHellman(t *testing.T) {
 	// https://hgarrereyn.gitbooks.io/th3g3ntl3man-ctf-writeups/content/2017/picoCTF_2017/problems/cryptography/ECC2/ECC2.html
-	c := &EllipticCurve{
+	c := &Curve{
 		H: new(big.Int).SetInt64(1),
 	}
 	c.P, _ = new(big.Int).SetString("93556643250795678718734474880013829509320385402690660619699653921022012489089", 10)

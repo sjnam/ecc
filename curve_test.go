@@ -8,10 +8,10 @@ import (
 	"testing"
 )
 
-var s256, p224, p256, p384, p521 *EllipticCurve
+var s256, p224, p256, p384, p521 *Curve
 
 func init() {
-	s256 = &EllipticCurve{Name: "secp256k1"}
+	s256 = &Curve{Name: "secp256k1"}
 	s256.P, _ = new(big.Int).SetString("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f", 0)
 	s256.A = big.NewInt(0)
 	s256.B = big.NewInt(7)
@@ -22,7 +22,7 @@ func init() {
 	s256.BitSize = 256
 
 	// See FIPS 186-3, section D.2.2
-	p224 = &EllipticCurve{Name: "p224"}
+	p224 = &Curve{Name: "p224"}
 	p224.P, _ = new(big.Int).SetString("0xffffffffffffffffffffffffffffffff000000000000000000000001", 0)
 	p224.A = big.NewInt(-3)
 	p224.B, _ = new(big.Int).SetString("0xb4050a850c04b3abf54132565044b0b7d7bfd8ba270b39432355ffb4", 0)
@@ -33,7 +33,7 @@ func init() {
 	p224.BitSize = 224
 
 	// See FIPS 186-3, section D.2.3
-	p256 = &EllipticCurve{Name: "p256"}
+	p256 = &Curve{Name: "p256"}
 	p256.P, _ = new(big.Int).SetString("0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff", 0)
 	p256.A = big.NewInt(-3)
 	p256.B, _ = new(big.Int).SetString("0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b", 0)
@@ -44,7 +44,7 @@ func init() {
 	p256.BitSize = 256
 
 	// See FIPS 186-4, section D.1.2.4
-	p384 = &EllipticCurve{Name: "p384"}
+	p384 = &Curve{Name: "p384"}
 	p384.P, _ = new(big.Int).SetString("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff", 0)
 	p384.A = big.NewInt(-3)
 	p384.B, _ = new(big.Int).SetString("0xb3312fa7e23ee7e4988e056be3f82d19181d9c6efe8141120314088f5013875ac656398d8a2ed19d2a85c8edd3ec2aef", 0)
@@ -55,7 +55,7 @@ func init() {
 	p384.BitSize = 384
 
 	// See FIPS 186-3, section D.2.5
-	p521 = &EllipticCurve{Name: "p521"}
+	p521 = &Curve{Name: "p521"}
 	p521.P, _ = new(big.Int).SetString("0x1ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 0)
 	p521.A = big.NewInt(-3)
 	p521.B, _ = new(big.Int).SetString("0x051953eb9618e1c9a1f929a21a0b68540eea2da725b99b315f3b8b489918ef109e156193951ec7e937b1652c0bd3bb1bf073573df883d2c34f1ef451fd46b503f00", 0)
@@ -66,10 +66,10 @@ func init() {
 	p521.BitSize = 521
 }
 
-func testAllCurves(t *testing.T, f func(*testing.T, *EllipticCurve)) {
+func testAllCurves(t *testing.T, f func(*testing.T, *Curve)) {
 	tests := []struct {
 		name string
-		*EllipticCurve
+		*Curve
 	}{
 		{"S256", s256},
 		{"P224", p224},
@@ -81,7 +81,7 @@ func testAllCurves(t *testing.T, f func(*testing.T, *EllipticCurve)) {
 		tests = tests[:1]
 	}
 	for _, test := range tests {
-		curve := test.EllipticCurve
+		curve := test.Curve
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			f(t, curve)
@@ -90,7 +90,7 @@ func testAllCurves(t *testing.T, f func(*testing.T, *EllipticCurve)) {
 }
 
 func TestOnCurve(t *testing.T) {
-	testAllCurves(t, func(t *testing.T, curve *EllipticCurve) {
+	testAllCurves(t, func(t *testing.T, curve *Curve) {
 		if !curve.IsOnCurve(curve.Gx, curve.Gy) {
 			t.Error("basepoint is not on the curve")
 		}
@@ -98,7 +98,7 @@ func TestOnCurve(t *testing.T) {
 }
 
 func TestOffCurve(t *testing.T) {
-	testAllCurves(t, func(t *testing.T, curve *EllipticCurve) {
+	testAllCurves(t, func(t *testing.T, curve *Curve) {
 		x, y := new(big.Int).SetInt64(1), new(big.Int).SetInt64(1)
 		if curve.IsOnCurve(x, y) {
 			t.Errorf("point off curve is claimed to be on the curve")
@@ -121,7 +121,7 @@ func TestInfinity(t *testing.T) {
 	testAllCurves(t, testInfinity)
 }
 
-func testInfinity(t *testing.T, curve *EllipticCurve) {
+func testInfinity(t *testing.T, curve *Curve) {
 	_, x, y, _ := curve.GenerateKey(rand.Reader)
 	x, y = curve.ScalarMult(x, y, curve.N.Bytes())
 	if x.Sign() != 0 || y.Sign() != 0 {
@@ -171,7 +171,7 @@ func TestKeyGeneration(t *testing.T) {
 	testAllCurves(t, testKeyGeneration)
 }
 
-func testKeyGeneration(t *testing.T, ec *EllipticCurve) {
+func testKeyGeneration(t *testing.T, ec *Curve) {
 	_, x, y, err := ec.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
@@ -182,7 +182,7 @@ func testKeyGeneration(t *testing.T, ec *EllipticCurve) {
 }
 
 func TestMarshal(t *testing.T) {
-	testAllCurves(t, func(t *testing.T, curve *EllipticCurve) {
+	testAllCurves(t, func(t *testing.T, curve *Curve) {
 		_, x, y, err := curve.GenerateKey(rand.Reader)
 		if err != nil {
 			t.Fatal(err)
@@ -203,7 +203,7 @@ func TestUnmarshalToLargeCoordinates(t *testing.T) {
 	testAllCurves(t, testUnmarshalToLargeCoordinates)
 }
 
-func testUnmarshalToLargeCoordinates(t *testing.T, curve *EllipticCurve) {
+func testUnmarshalToLargeCoordinates(t *testing.T, curve *Curve) {
 	p := curve.P
 	byteLen := (p.BitLen() + 7) / 8
 
@@ -251,7 +251,7 @@ func TestInvalidCoordinates(t *testing.T) {
 	testAllCurves(t, testInvalidCoordinates)
 }
 
-func testInvalidCoordinates(t *testing.T, curve *EllipticCurve) {
+func testInvalidCoordinates(t *testing.T, curve *Curve) {
 	checkIsOnCurveFalse := func(name string, x, y *big.Int) {
 		if curve.IsOnCurve(x, y) {
 			t.Errorf("IsOnCurve(%s) unexpectedly returned true", name)
@@ -325,7 +325,7 @@ func TestMarshalCompressed(t *testing.T) {
 		t.Skip("skipping other curves on short test")
 	}
 
-	testAllCurves(t, func(t *testing.T, curve *EllipticCurve) {
+	testAllCurves(t, func(t *testing.T, curve *Curve) {
 		_, x, y, err := curve.GenerateKey(rand.Reader)
 		if err != nil {
 			t.Fatal(err)
@@ -334,7 +334,7 @@ func TestMarshalCompressed(t *testing.T) {
 	})
 }
 
-func testMarshalCompressed(t *testing.T, curve *EllipticCurve, x, y *big.Int, want []byte) {
+func testMarshalCompressed(t *testing.T, curve *Curve, x, y *big.Int, want []byte) {
 	if !curve.IsOnCurve(x, y) {
 		t.Fatal("invalid test point")
 	}
@@ -357,7 +357,7 @@ func testMarshalCompressed(t *testing.T, curve *EllipticCurve, x, y *big.Int, wa
 }
 
 func TestLargeIsOnCurve(t *testing.T) {
-	testAllCurves(t, func(t *testing.T, curve *EllipticCurve) {
+	testAllCurves(t, func(t *testing.T, curve *Curve) {
 		large := big.NewInt(1)
 		large.Lsh(large, 1000)
 		if curve.IsOnCurve(large, large) {
@@ -366,10 +366,10 @@ func TestLargeIsOnCurve(t *testing.T) {
 	})
 }
 
-func benchmarkAllCurves(t *testing.B, f func(*testing.B, *EllipticCurve)) {
+func benchmarkAllCurves(t *testing.B, f func(*testing.B, *Curve)) {
 	tests := []struct {
 		name  string
-		curve *EllipticCurve
+		curve *Curve
 	}{
 		{"S256", s256},
 		{"P256", p256},
@@ -386,7 +386,7 @@ func benchmarkAllCurves(t *testing.B, f func(*testing.B, *EllipticCurve)) {
 }
 
 func BenchmarkScalarBaseMult(b *testing.B) {
-	benchmarkAllCurves(b, func(b *testing.B, curve *EllipticCurve) {
+	benchmarkAllCurves(b, func(b *testing.B, curve *Curve) {
 		priv, _, _, _ := curve.GenerateKey(rand.Reader)
 		b.ReportAllocs()
 		b.ResetTimer()
@@ -399,7 +399,7 @@ func BenchmarkScalarBaseMult(b *testing.B) {
 }
 
 func BenchmarkScalarMult(b *testing.B) {
-	benchmarkAllCurves(b, func(b *testing.B, curve *EllipticCurve) {
+	benchmarkAllCurves(b, func(b *testing.B, curve *Curve) {
 		_, x, y, _ := curve.GenerateKey(rand.Reader)
 		priv, _, _, _ := curve.GenerateKey(rand.Reader)
 		b.ReportAllocs()
@@ -411,7 +411,7 @@ func BenchmarkScalarMult(b *testing.B) {
 }
 
 func BenchmarkMarshalUnmarshal(b *testing.B) {
-	benchmarkAllCurves(b, func(b *testing.B, curve *EllipticCurve) {
+	benchmarkAllCurves(b, func(b *testing.B, curve *Curve) {
 		_, x, y, _ := curve.GenerateKey(rand.Reader)
 		b.Run("Uncompressed", func(b *testing.B) {
 			b.ReportAllocs()
