@@ -4,7 +4,29 @@ import (
 	"math/big"
 )
 
-var one = big.NewInt(1)
+var (
+	one   = big.NewInt(1)
+	two   = big.NewInt(2)
+	three = big.NewInt(3)
+)
+
+// Chinese remainder theorem
+func crt(a, n []*big.Int) *big.Int {
+	p := big.NewInt(1)
+	for _, n1 := range n {
+		p.Mul(p, n1)
+	}
+	var x, q, s, z big.Int
+	for i, n1 := range n {
+		q.Div(p, n1)
+		z.GCD(nil, &s, n1, &q)
+		if z.Int64() != 1 {
+			return nil
+		}
+		x.Add(&x, s.Mul(a[i], s.Mul(&s, &q)))
+	}
+	return x.Mod(&x, p)
+}
 
 func pollardRho(n *big.Int) *big.Int {
 	xStatic := big.NewInt(2)
