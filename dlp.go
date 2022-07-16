@@ -3,6 +3,7 @@ package ecc
 import (
 	"math/big"
 	"math/rand"
+	"sort"
 	"time"
 )
 
@@ -85,4 +86,33 @@ func crt(a, n []*big.Int) *big.Int {
 		x.Add(&x, s.Mul(a[i], s.Mul(&s, &q)))
 	}
 	return x.Mod(&x, p)
+}
+
+// PohligHellman algorithm for the ECDLP
+func (c *EllipticCurve) PohligHellman(px, py, hx, hy *big.Int) *big.Int {
+	N := new(big.Int).Set(c.N)
+	factors := factorize(N)
+	sort.SliceStable(factors, func(i, j int) bool {
+		return factors[i].Cmp(factors[j]) < 0
+	})
+
+	var res []*big.Int
+	for i, j := 0, 0; i < len(factors); i = j {
+		k := new(big.Int).Set(factors[i])
+		for j = i + 1; j < len(factors) && factors[j].Cmp(factors[i]) == 0; j++ {
+			k.Mul(k, factors[i])
+		}
+		res = append(res, k)
+	}
+
+	var dLogs []*big.Int
+	for _, factor := range res {
+		c.N.Set(factor)
+		t := new(big.Int).Div(N, factor)
+		x, y := c.ScalarMult(px, py, t.Bytes())
+		qx, qy := c.ScalarMult(hx, hy, t.Bytes())
+		dLogs = append(dLogs, c.PollardRho(x, y, qx, qy))
+	}
+
+	return crt(dLogs, res)
 }
