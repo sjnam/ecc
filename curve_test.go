@@ -9,18 +9,18 @@ import (
 	"testing"
 )
 
-var s256, p224, p256, p384, p521 *Curve
+var secp256k1, p224, p256, p384, p521 *Curve
 
 func init() {
-	s256 = &Curve{Name: "secp256k1"}
-	s256.P, _ = new(big.Int).SetString("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f", 0)
-	s256.A = big.NewInt(0)
-	s256.B = big.NewInt(7)
-	s256.Gx, _ = new(big.Int).SetString("0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798", 0)
-	s256.Gy, _ = new(big.Int).SetString("0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8", 0)
-	s256.N, _ = new(big.Int).SetString("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 0)
-	s256.H = big.NewInt(1)
-	s256.BitSize = 256
+	secp256k1 = &Curve{Name: "secp256k1"}
+	secp256k1.P, _ = new(big.Int).SetString("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f", 0)
+	secp256k1.A = big.NewInt(0)
+	secp256k1.B = big.NewInt(7)
+	secp256k1.Gx, _ = new(big.Int).SetString("0x79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798", 0)
+	secp256k1.Gy, _ = new(big.Int).SetString("0x483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8", 0)
+	secp256k1.N, _ = new(big.Int).SetString("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 0)
+	secp256k1.H = big.NewInt(1)
+	secp256k1.BitSize = 256
 
 	// See FIPS 186-3, section D.2.2
 	p224 = &Curve{Name: "p224"}
@@ -72,7 +72,7 @@ func testAllCurves(t *testing.T, f func(*testing.T, *Curve)) {
 		name string
 		*Curve
 	}{
-		{"S256", s256},
+		{"SECP256K1", secp256k1},
 		{"P224", p224},
 		{"P256", p256},
 		{"P384", p384},
@@ -372,7 +372,7 @@ func benchmarkAllCurves(t *testing.B, f func(*testing.B, *Curve)) {
 		name  string
 		curve *Curve
 	}{
-		{"S256", s256},
+		{"SECP256K1", secp256k1},
 		{"P256", p256},
 		{"P224", p224},
 		{"P384", p384},

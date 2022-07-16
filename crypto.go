@@ -7,9 +7,9 @@ import (
 )
 
 // Encrypt encrypts with ECDH
-func (c *Curve) Encrypt(priv []byte, pubX, pubY *big.Int) []byte {
-	ssx, ssy := c.ScalarMult(pubX, pubY, priv)
-	return c.Marshal(ssx, ssy)
+func (curve *Curve) Encrypt(priv []byte, pubX, pubY *big.Int) []byte {
+	ssx, ssy := curve.ScalarMult(pubX, pubY, priv)
+	return curve.Marshal(ssx, ssy)
 }
 
 // hashToInt converts a hash value to an integer. There is some disagreement
@@ -18,8 +18,8 @@ func (c *Curve) Encrypt(priv []byte, pubX, pubY *big.Int) []byte {
 // first. We follow [SECG] because that's what OpenSSL does. Additionally,
 // OpenSSL right shifts excess bits from the number if the hash is too large,
 // and we mirror that too.
-func (c *Curve) hashToInt(hash []byte) *big.Int {
-	orderBits := c.BitSize
+func (curve *Curve) hashToInt(hash []byte) *big.Int {
+	orderBits := curve.BitSize
 	orderBytes := (orderBits + 7) / 8
 	if len(hash) > orderBytes {
 		hash = hash[:orderBytes]
@@ -39,14 +39,14 @@ func (c *Curve) hashToInt(hash []byte) *big.Int {
 // private key's curve order, the hash will be truncated to that length. It
 // returns the signature as a pair of integers. The security of the private key
 // depends on the entropy of rand.
-func (c *Curve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
+func (curve *Curve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 	var k []byte
-	N := c.N
+	N := curve.N
 	s = new(big.Int).SetBytes(priv)
-	z := c.hashToInt(hash)
+	z := curve.hashToInt(hash)
 
 	for {
-		k, r, _, _ = elliptic.GenerateKey(c, rand.Reader)
+		k, r, _, _ = elliptic.GenerateKey(curve, rand.Reader)
 		s.Mul(r, s)
 		s.Add(s, z)
 		kInv := new(big.Int).SetBytes(k)
@@ -60,16 +60,16 @@ func (c *Curve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 
 // Verify verifies the signature in r, s of hash using the public key, pub. Its
 // return value records whether the signature is valid.
-func (c *Curve) Verify(Hx, Hy *big.Int, hash []byte, r, s *big.Int) bool {
-	N := c.N
-	u1 := c.hashToInt(hash)
+func (curve *Curve) Verify(Hx, Hy *big.Int, hash []byte, r, s *big.Int) bool {
+	N := curve.N
+	u1 := curve.hashToInt(hash)
 	u2 := s.ModInverse(s, N)
 	u1.Mul(u2, u1)
 	u1.Mod(u1, N)
 	u2.Mul(u2, r)
 	u2.Mod(u2, N)
 
-	x, y := c.CombinedMult(Hx, Hy, u1.Bytes(), u2.Bytes())
+	x, y := curve.CombinedMult(Hx, Hy, u1.Bytes(), u2.Bytes())
 	if x.Sign() == 0 && y.Sign() == 0 {
 		return false
 	}

@@ -33,38 +33,38 @@ type Curve struct {
 }
 
 // Params returns the parameters for the curve.
-func (c *Curve) Params() *elliptic.CurveParams {
+func (curve *Curve) Params() *elliptic.CurveParams {
 	return &elliptic.CurveParams{
-		P:       c.P,
-		N:       c.N,
-		B:       c.B,
-		Gx:      c.Gx,
-		Gy:      c.Gy,
-		BitSize: c.BitSize,
-		Name:    c.Name,
+		P:       curve.P,
+		N:       curve.N,
+		B:       curve.B,
+		Gx:      curve.Gx,
+		Gy:      curve.Gy,
+		BitSize: curve.BitSize,
+		Name:    curve.Name,
 	}
 }
 
 // polynomial returns y² = x³ + Ax + B.
-func (c *Curve) polynomial(x *big.Int) *big.Int {
-	x3 := new(big.Int).Mul(x, x)         // x²
-	x3.Mul(x3, x)                        // x³
-	x3.Add(x3, new(big.Int).Mul(x, c.A)) // x³+AX
-	x3.Add(x3, c.B)                      // x³+AX+B
-	x3.Mod(x3, c.P)                      //(x³+AX+B)%P
+func (curve *Curve) polynomial(x *big.Int) *big.Int {
+	x3 := new(big.Int).Mul(x, x)             // x²
+	x3.Mul(x3, x)                            // x³
+	x3.Add(x3, new(big.Int).Mul(x, curve.A)) // x³+AX
+	x3.Add(x3, curve.B)                      // x³+AX+B
+	x3.Mod(x3, curve.P)                      //(x³+AX+B)%P
 	return x3
 }
 
 // IsOnCurve reports whether the given (x,y) lies on the curve.
-func (c *Curve) IsOnCurve(x, y *big.Int) bool {
-	if x.Sign() < 0 || x.Cmp(c.P) >= 0 ||
-		y.Sign() < 0 || y.Cmp(c.P) >= 0 {
+func (curve *Curve) IsOnCurve(x, y *big.Int) bool {
+	if x.Sign() < 0 || x.Cmp(curve.P) >= 0 ||
+		y.Sign() < 0 || y.Cmp(curve.P) >= 0 {
 		return false
 	}
 
 	y2 := new(big.Int).Mul(y, y) // y²
-	y2.Mod(y2, c.P)              // y²%P
-	return c.polynomial(x).Cmp(y2) == 0
+	y2.Mod(y2, curve.P)          // y²%P
+	return curve.polynomial(x).Cmp(y2) == 0
 }
 
 // zForAffine returns a Jacobian Z value for the affine point (x, y). If x and
@@ -80,36 +80,36 @@ func zForAffine(x, y *big.Int) *big.Int {
 
 // affineFromJacobian reverses the Jacobian transform. See the comment at the
 // top of the file.
-func (c *Curve) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.Int) {
+func (curve *Curve) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.Int) {
 	if z.Sign() == 0 {
 		return new(big.Int), new(big.Int)
 	}
 
-	zInv := new(big.Int).ModInverse(z, c.P)
+	zInv := new(big.Int).ModInverse(z, curve.P)
 	zInvSq := new(big.Int).Mul(zInv, zInv)
 	xOut = new(big.Int).Mul(x, zInvSq)
-	xOut.Mod(xOut, c.P)
+	xOut.Mod(xOut, curve.P)
 	zInvSq.Mul(zInvSq, zInv)
 	yOut = new(big.Int).Mul(y, zInvSq)
-	yOut.Mod(yOut, c.P)
+	yOut.Mod(yOut, curve.P)
 	return
 }
 
 // Add returns the sum of (x1,y1) and (x2,y2)
-func (c *Curve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
-	panicIfNotOnCurve(c, x1, y1)
-	panicIfNotOnCurve(c, x2, y2)
+func (curve *Curve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
+	panicIfNotOnCurve(curve, x1, y1)
+	panicIfNotOnCurve(curve, x2, y2)
 
 	z1 := zForAffine(x1, y1)
 	z2 := zForAffine(x2, y2)
-	return c.affineFromJacobian(c.addJacobian(x1, y1, z1, x2, y2, z2))
+	return curve.affineFromJacobian(curve.addJacobian(x1, y1, z1, x2, y2, z2))
 }
 
 // addJacobian takes two points in Jacobian coordinates, (x1, y1, z1) and
 // (x2, y2, z2) and returns their sum, also in Jacobian form.
-func (c *Curve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (x3, y3, z3 *big.Int) {
+func (curve *Curve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (x3, y3, z3 *big.Int) {
 	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#addition-add-2007-bl
-	P := c.P
+	P := curve.P
 	x3, y3, z3 = new(big.Int), new(big.Int), new(big.Int)
 	if z1.Sign() == 0 {
 		x3.Set(x2)
@@ -157,7 +157,7 @@ func (c *Curve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (x3, y3, z3 *big.In
 	}
 	yEqual := r.Sign() == 0
 	if xEqual && yEqual {
-		return c.doubleJacobian(x1, y1, z1)
+		return curve.doubleJacobian(x1, y1, z1)
 	}
 	r.Lsh(r, 1)
 
@@ -195,18 +195,18 @@ func (c *Curve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (x3, y3, z3 *big.In
 }
 
 // Double returns 2*(x,y)
-func (c *Curve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
-	panicIfNotOnCurve(c, x1, y1)
+func (curve *Curve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
+	panicIfNotOnCurve(curve, x1, y1)
 
 	z1 := zForAffine(x1, y1)
-	return c.affineFromJacobian(c.doubleJacobian(x1, y1, z1))
+	return curve.affineFromJacobian(curve.doubleJacobian(x1, y1, z1))
 }
 
 // doubleJacobian takes a point in Jacobian coordinates, (x, y, z), and
 // returns its double, also in Jacobian form.
-func (c *Curve) doubleJacobian(x, y, z *big.Int) (x3, y3, z3 *big.Int) {
+func (curve *Curve) doubleJacobian(x, y, z *big.Int) (x3, y3, z3 *big.Int) {
 	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
-	P := c.P
+	P := curve.P
 	xx := new(big.Int).Mul(x, x) // XX = X1²
 	xx.Mod(xx, P)
 	yy := new(big.Int).Mul(y, y) // YY = Y1²
@@ -231,9 +231,9 @@ func (c *Curve) doubleJacobian(x, y, z *big.Int) (x3, y3, z3 *big.Int) {
 	s.Lsh(s, 1) // 2*((X1+YY)²-XX-YYYY)
 	s.Mod(s, P)
 
-	m := new(big.Int).Lsh(xx, 1)  // 2*XX
-	m.Add(m, xx)                  // 3*XX
-	m.Add(m, zzzz.Mul(c.A, zzzz)) // 3*XX+A*ZZ²
+	m := new(big.Int).Lsh(xx, 1)      // 2*XX
+	m.Add(m, xx)                      // 3*XX
+	m.Add(m, zzzz.Mul(curve.A, zzzz)) // 3*XX+A*ZZ²
 	m.Mod(m, P)
 
 	t := new(big.Int).Mul(m, m)      // M²
@@ -270,44 +270,44 @@ func (c *Curve) doubleJacobian(x, y, z *big.Int) (x3, y3, z3 *big.Int) {
 }
 
 // ScalarMult returns k*(Bx,By) where k is a number in big-endian form.
-func (c *Curve) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
-	panicIfNotOnCurve(c, Bx, By)
+func (curve *Curve) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
+	panicIfNotOnCurve(curve, Bx, By)
 
 	Bz := new(big.Int).SetInt64(1)
 	x, y, z := new(big.Int), new(big.Int), new(big.Int)
 	for _, b := range k {
 		for bitNum := 0; bitNum < 8; bitNum++ {
-			x, y, z = c.doubleJacobian(x, y, z)
+			x, y, z = curve.doubleJacobian(x, y, z)
 			if b&0x80 == 0x80 {
-				x, y, z = c.addJacobian(Bx, By, Bz, x, y, z)
+				x, y, z = curve.addJacobian(Bx, By, Bz, x, y, z)
 			}
 			b <<= 1
 		}
 	}
-	return c.affineFromJacobian(x, y, z)
+	return curve.affineFromJacobian(x, y, z)
 }
 
 // ScalarBaseMult returns k*G, where G is the base point of the group and k is
 // an integer in big-endian form.
-func (c *Curve) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
-	return c.ScalarMult(c.Gx, c.Gy, k)
+func (curve *Curve) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
+	return curve.ScalarMult(curve.Gx, curve.Gy, k)
 }
 
 // CombinedMult implements fast multiplication
 // S1*g + S2*p (g - generator, p - arbitrary point)
-func (c *Curve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
-	x1, y1 := c.ScalarBaseMult(baseScalar)
-	x2, y2 := c.ScalarMult(bigX, bigY, scalar)
-	return c.Add(x1, y1, x2, y2)
+func (curve *Curve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
+	x1, y1 := curve.ScalarBaseMult(baseScalar)
+	x2, y2 := curve.ScalarMult(bigX, bigY, scalar)
+	return curve.Add(x1, y1, x2, y2)
 }
 
 // Marshal converts a point on the curve into the uncompressed form specified in
 // SEC 1, Version 2.0, Section 2.3.3. If the point is not on the curve (or is
 // the conventional point at infinity), the behavior is undefined.
-func (c *Curve) Marshal(x, y *big.Int) []byte {
-	panicIfNotOnCurve(c, x, y)
+func (curve *Curve) Marshal(x, y *big.Int) []byte {
+	panicIfNotOnCurve(curve, x, y)
 
-	byteLen := (c.BitSize + 7) / 8
+	byteLen := (curve.BitSize + 7) / 8
 
 	ret := make([]byte, 1+2*byteLen)
 	ret[0] = 4 // uncompressed point
@@ -321,10 +321,10 @@ func (c *Curve) Marshal(x, y *big.Int) []byte {
 // MarshalCompressed converts a point on the curve into the compressed form
 // specified in SEC 1, Version 2.0, Section 2.3.3. If the point is not on the
 // curve (or is the conventional point at infinity), the behavior is undefined.
-func (c *Curve) MarshalCompressed(x, y *big.Int) []byte {
-	panicIfNotOnCurve(c, x, y)
+func (curve *Curve) MarshalCompressed(x, y *big.Int) []byte {
+	panicIfNotOnCurve(curve, x, y)
 
-	byteLen := (c.BitSize + 7) / 8
+	byteLen := (curve.BitSize + 7) / 8
 	compressed := make([]byte, 1+byteLen)
 	compressed[0] = byte(y.Bit(0)) | 2
 	x.FillBytes(compressed[1:])
@@ -334,21 +334,21 @@ func (c *Curve) MarshalCompressed(x, y *big.Int) []byte {
 // Unmarshal converts a point, serialized by Marshal, into an x, y pair. It is
 // an error if the point is not in uncompressed form, is not on the curve, or is
 // the point at infinity. On error, x = nil.
-func (c *Curve) Unmarshal(data []byte) (x, y *big.Int) {
-	byteLen := (c.BitSize + 7) / 8
+func (curve *Curve) Unmarshal(data []byte) (x, y *big.Int) {
+	byteLen := (curve.BitSize + 7) / 8
 	if len(data) != 1+2*byteLen {
 		return nil, nil
 	}
 	if data[0] != 4 { // uncompressed form
 		return nil, nil
 	}
-	p := c.P
+	p := curve.P
 	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
 	y = new(big.Int).SetBytes(data[1+byteLen:])
 	if x.Cmp(p) >= 0 || y.Cmp(p) >= 0 {
 		return nil, nil
 	}
-	if !c.IsOnCurve(x, y) {
+	if !curve.IsOnCurve(x, y) {
 		return nil, nil
 	}
 	return
@@ -357,20 +357,20 @@ func (c *Curve) Unmarshal(data []byte) (x, y *big.Int) {
 // UnmarshalCompressed converts a point, serialized by MarshalCompressed, into
 // an x, y pair. It is an error if the point is not in compressed form, is not
 // on the curve, or is the point at infinity. On error, x = nil.
-func (c *Curve) UnmarshalCompressed(data []byte) (x, y *big.Int) {
-	byteLen := (c.BitSize + 7) / 8
+func (curve *Curve) UnmarshalCompressed(data []byte) (x, y *big.Int) {
+	byteLen := (curve.BitSize + 7) / 8
 	if len(data) != 1+byteLen {
 		return nil, nil
 	}
 	if data[0] != 2 && data[0] != 3 { // compressed form
 		return nil, nil
 	}
-	p := c.P
+	p := curve.P
 	x = new(big.Int).SetBytes(data[1:])
 	if x.Cmp(p) >= 0 {
 		return nil, nil
 	}
-	y = c.polynomial(x)
+	y = curve.polynomial(x)
 	y = y.ModSqrt(y, p)
 	if y == nil {
 		return nil, nil
@@ -378,7 +378,7 @@ func (c *Curve) UnmarshalCompressed(data []byte) (x, y *big.Int) {
 	if byte(y.Bit(0)) != data[0]&1 {
 		y.Neg(y).Mod(y, p)
 	}
-	if !c.IsOnCurve(x, y) {
+	if !curve.IsOnCurve(x, y) {
 		return nil, nil
 	}
 	return
