@@ -113,6 +113,7 @@ func (c *EllipticCurve) PohligHellman(px, py, hx, hy *big.Int) *big.Int {
 		qx, qy := c.ScalarMult(hx, hy, t.Bytes())
 		dLogs = append(dLogs, c.PollardRho(x, y, qx, qy))
 	}
+	c.N = N
 
 	return crt(dLogs, res)
 }
