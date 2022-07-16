@@ -1,6 +1,9 @@
 package ecc
 
-import "math/big"
+import (
+	"crypto/rand"
+	"math/big"
+)
 
 // Encrypt encrypts with ECDH
 func (c *EllipticCurve) Encrypt(priv []byte, pubX, pubY *big.Int) []byte {
@@ -42,7 +45,7 @@ func (c *EllipticCurve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 	z := c.hashToInt(hash)
 
 	for {
-		k, r, _, _ = c.GenerateKey()
+		k, r, _, _ = c.GenerateKey(rand.Reader)
 		s.Mul(r, s)
 		s.Add(s, z)
 		kInv := new(big.Int).SetBytes(k)

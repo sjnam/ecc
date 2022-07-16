@@ -2,6 +2,7 @@ package ecc
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/hex"
 	"math/big"
 	"testing"
@@ -121,7 +122,7 @@ func TestInfinity(t *testing.T) {
 }
 
 func testInfinity(t *testing.T, curve *EllipticCurve) {
-	_, x, y, _ := curve.GenerateKey()
+	_, x, y, _ := curve.GenerateKey(rand.Reader)
 	x, y = curve.ScalarMult(x, y, curve.N.Bytes())
 	if x.Sign() != 0 || y.Sign() != 0 {
 		t.Errorf("x^q != ∞")
@@ -171,7 +172,7 @@ func TestKeyGeneration(t *testing.T) {
 }
 
 func testKeyGeneration(t *testing.T, ec *EllipticCurve) {
-	_, x, y, err := ec.GenerateKey()
+	_, x, y, err := ec.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +183,7 @@ func testKeyGeneration(t *testing.T, ec *EllipticCurve) {
 
 func TestMarshal(t *testing.T) {
 	testAllCurves(t, func(t *testing.T, curve *EllipticCurve) {
-		_, x, y, err := curve.GenerateKey()
+		_, x, y, err := curve.GenerateKey(rand.Reader)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -258,7 +259,7 @@ func testInvalidCoordinates(t *testing.T, curve *EllipticCurve) {
 	}
 
 	p := curve.P
-	_, x, y, _ := curve.GenerateKey()
+	_, x, y, _ := curve.GenerateKey(rand.Reader)
 	xx, yy := new(big.Int), new(big.Int)
 
 	// Check if the sign is getting dropped.
@@ -325,7 +326,7 @@ func TestMarshalCompressed(t *testing.T) {
 	}
 
 	testAllCurves(t, func(t *testing.T, curve *EllipticCurve) {
-		_, x, y, err := curve.GenerateKey()
+		_, x, y, err := curve.GenerateKey(rand.Reader)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -386,7 +387,7 @@ func benchmarkAllCurves(t *testing.B, f func(*testing.B, *EllipticCurve)) {
 
 func BenchmarkScalarBaseMult(b *testing.B) {
 	benchmarkAllCurves(b, func(b *testing.B, curve *EllipticCurve) {
-		priv, _, _, _ := curve.GenerateKey()
+		priv, _, _, _ := curve.GenerateKey(rand.Reader)
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -399,8 +400,8 @@ func BenchmarkScalarBaseMult(b *testing.B) {
 
 func BenchmarkScalarMult(b *testing.B) {
 	benchmarkAllCurves(b, func(b *testing.B, curve *EllipticCurve) {
-		_, x, y, _ := curve.GenerateKey()
-		priv, _, _, _ := curve.GenerateKey()
+		_, x, y, _ := curve.GenerateKey(rand.Reader)
+		priv, _, _, _ := curve.GenerateKey(rand.Reader)
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -411,7 +412,7 @@ func BenchmarkScalarMult(b *testing.B) {
 
 func BenchmarkMarshalUnmarshal(b *testing.B) {
 	benchmarkAllCurves(b, func(b *testing.B, curve *EllipticCurve) {
-		_, x, y, _ := curve.GenerateKey()
+		_, x, y, _ := curve.GenerateKey(rand.Reader)
 		b.Run("Uncompressed", func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {

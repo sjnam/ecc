@@ -2,6 +2,7 @@ package ecc
 
 import (
 	"bytes"
+	"crypto/rand"
 	"testing"
 )
 
@@ -10,7 +11,7 @@ func TestSignAndVerify(t *testing.T) {
 }
 
 func testSignAndVerify(t *testing.T, ec *EllipticCurve) {
-	priv, pubX, pubY, _ := ec.GenerateKey()
+	priv, pubX, pubY, _ := ec.GenerateKey(rand.Reader)
 
 	hashed := []byte("testing")
 	r, s := ec.Sign(priv, hashed)
@@ -30,8 +31,8 @@ func TestECDH(t *testing.T) {
 }
 
 func testECDH(t *testing.T, ec *EllipticCurve) {
-	aPriv, aPubX, aPubY, _ := ec.GenerateKey()
-	bPriv, bPubX, bPubY, _ := ec.GenerateKey()
+	aPriv, aPubX, aPubY, _ := ec.GenerateKey(rand.Reader)
+	bPriv, bPubX, bPubY, _ := ec.GenerateKey(rand.Reader)
 
 	// encryption with ECDH
 	aSharedSecret := ec.Encrypt(aPriv, bPubX, bPubY)

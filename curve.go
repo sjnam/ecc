@@ -11,14 +11,17 @@ package ecc
 
 import (
 	"crypto/elliptic"
-	"crypto/rand"
+	"io"
 	"math/big"
 )
 
 // EllipticCurve represents a short-form Weierstrass curve. (y² = x³ + ax + b)
-// Note that the point at infinity (0, 0) is not considered on the curve, and
-// although it can be returned by Add, Double, ScalarMult, or ScalarBaseMult, it
-// can't be marshaled or unmarshalled, and IsOnCurve will return false for it.
+// The behavior of Add, Double, and ScalarMult when the input is not a point on
+// the curve is undefined.
+//
+// Note that the conventional point at infinity (0, 0) is not considered on the
+// curve, although it can be returned by Add, Double, ScalarMult, or
+// ScalarBaseMult (but not the Unmarshal or UnmarshalCompressed functions).
 type EllipticCurve struct {
 	P       *big.Int // the order of the underlying field
 	A       *big.Int // the constant of the EllipticCurve equation
@@ -299,18 +302,34 @@ func (c *EllipticCurve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []b
 	return c.Add(x1, y1, x2, y2)
 }
 
-// GenerateKey returns a public/private key pair.
-func (c *EllipticCurve) GenerateKey() (priv []byte, x, y *big.Int, err error) {
-	var k *big.Int
-	if c.N.BitLen() < 9 {
-		k, err = rand.Int(rand.Reader, c.N)
+var mask = []byte{0xff, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f}
+
+// GenerateKey returns a public/private key pair. The private key is
+// generated using the given reader, which must return random data.
+func (c *EllipticCurve) GenerateKey(rand io.Reader) (priv []byte, x, y *big.Int, err error) {
+	N := c.Params().N
+	bitSize := N.BitLen()
+	byteLen := (bitSize + 7) / 8
+	priv = make([]byte, byteLen)
+
+	for x == nil {
+		_, err = io.ReadFull(rand, priv)
 		if err != nil {
 			return
 		}
-		priv = k.Bytes()
+		// We have to mask off any excess bits in the case that the size of the
+		// underlying field is not a whole number of bytes.
+		priv[0] &= mask[bitSize%8]
+		// This is because, in tests, rand will return all zeros and we don't
+		// want to get the point at infinity and loop forever.
+		priv[1] ^= 0x42
+
+		// If the scalar is out of range, sample another random number.
+		if new(big.Int).SetBytes(priv).Cmp(N) >= 0 {
+			continue
+		}
+
 		x, y = c.ScalarBaseMult(priv)
-	} else {
-		priv, x, y, err = elliptic.GenerateKey(c, rand.Reader)
 	}
 	return
 }
