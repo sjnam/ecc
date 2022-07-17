@@ -18,11 +18,9 @@ func testSignAndVerify(t *testing.T, curve *Curve) {
 		return
 	}
 
-	if curve.BitSize > 9 {
-		hashed[0] ^= 0xff
-		if curve.Verify(pubX, pubY, hashed, r, s) {
-			t.Errorf("Verify always works!")
-		}
+	hashed[0] ^= 0xff
+	if curve.Verify(pubX, pubY, hashed, r, s) {
+		t.Errorf("Verify always works!")
 	}
 }
 
