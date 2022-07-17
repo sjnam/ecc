@@ -11,6 +11,7 @@ package ecc
 
 import (
 	"crypto/elliptic"
+	"crypto/rand"
 	"math/big"
 )
 
@@ -380,6 +381,25 @@ func (curve *Curve) UnmarshalCompressed(data []byte) (x, y *big.Int) {
 	}
 	if !curve.IsOnCurve(x, y) {
 		return nil, nil
+	}
+	return
+}
+
+// GenerateKey returns a public/private key pair.
+func (curve *Curve) GenerateKey() (priv []byte, x, y *big.Int, err error) {
+	var k *big.Int
+	if curve.N.BitLen() < 9 {
+		k, err = rand.Int(rand.Reader, curve.N)
+		if err != nil {
+			return
+		}
+		if k.Sign() == 0 {
+			k.SetInt64(1)
+		}
+		priv = k.Bytes()
+		x, y = curve.ScalarBaseMult(priv)
+	} else {
+		priv, x, y, err = elliptic.GenerateKey(curve, rand.Reader)
 	}
 	return
 }

@@ -2,16 +2,37 @@ package ecc
 
 import (
 	"bytes"
-	"crypto/elliptic"
-	"crypto/rand"
-	"encoding/hex"
 	"math/big"
 	"testing"
 )
 
-var secp256k1, p224, p256, p384, p521 *Curve
+var toy, small, secp256k1, p521 *Curve
 
 func init() {
+	toy = &Curve{
+		Name: "toy curve",
+		P:    big.NewInt(29),
+		A:    big.NewInt(4),
+		B:    big.NewInt(20),
+		Gx:   big.NewInt(1),
+		Gy:   big.NewInt(5),
+		N:    big.NewInt(37),
+		H:    big.NewInt(1),
+	}
+	toy.BitSize = toy.N.BitLen()
+
+	small = &Curve{
+		Name: "small curve",
+		P:    big.NewInt(229),
+		A:    big.NewInt(1),
+		B:    big.NewInt(44),
+		Gx:   big.NewInt(5),
+		Gy:   big.NewInt(116),
+		N:    big.NewInt(239),
+		H:    big.NewInt(1),
+	}
+	small.BitSize = small.N.BitLen()
+
 	secp256k1 = &Curve{Name: "secp256k1"}
 	secp256k1.P, _ = new(big.Int).SetString("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f", 0)
 	secp256k1.A = big.NewInt(0)
@@ -21,39 +42,6 @@ func init() {
 	secp256k1.N, _ = new(big.Int).SetString("0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 0)
 	secp256k1.H = big.NewInt(1)
 	secp256k1.BitSize = 256
-
-	// See FIPS 186-3, section D.2.2
-	p224 = &Curve{Name: "p224"}
-	p224.P, _ = new(big.Int).SetString("0xffffffffffffffffffffffffffffffff000000000000000000000001", 0)
-	p224.A = big.NewInt(-3)
-	p224.B, _ = new(big.Int).SetString("0xb4050a850c04b3abf54132565044b0b7d7bfd8ba270b39432355ffb4", 0)
-	p224.Gx, _ = new(big.Int).SetString("0xb70e0cbd6bb4bf7f321390b94a03c1d356c21122343280d6115c1d21", 0)
-	p224.Gy, _ = new(big.Int).SetString("0xbd376388b5f723fb4c22dfe6cd4375a05a07476444d5819985007e34", 0)
-	p224.N, _ = new(big.Int).SetString("0xffffffffffffffffffffffffffff16a2e0b8f03e13dd29455c5c2a3d", 0)
-	p224.H = big.NewInt(1)
-	p224.BitSize = 224
-
-	// See FIPS 186-3, section D.2.3
-	p256 = &Curve{Name: "p256"}
-	p256.P, _ = new(big.Int).SetString("0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff", 0)
-	p256.A = big.NewInt(-3)
-	p256.B, _ = new(big.Int).SetString("0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b", 0)
-	p256.Gx, _ = new(big.Int).SetString("0x6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296", 0)
-	p256.Gy, _ = new(big.Int).SetString("0x4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5", 0)
-	p256.N, _ = new(big.Int).SetString("0xffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc632551", 0)
-	p256.H = big.NewInt(1)
-	p256.BitSize = 256
-
-	// See FIPS 186-4, section D.1.2.4
-	p384 = &Curve{Name: "p384"}
-	p384.P, _ = new(big.Int).SetString("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffff", 0)
-	p384.A = big.NewInt(-3)
-	p384.B, _ = new(big.Int).SetString("0xb3312fa7e23ee7e4988e056be3f82d19181d9c6efe8141120314088f5013875ac656398d8a2ed19d2a85c8edd3ec2aef", 0)
-	p384.Gx, _ = new(big.Int).SetString("0xaa87ca22be8b05378eb1c71ef320ad746e1d3b628ba79b9859f741e082542a385502f25dbf55296c3a545e3872760ab7", 0)
-	p384.Gy, _ = new(big.Int).SetString("0x3617de4a96262c6f5d9e98bf9292dc29f8f41dbd289a147ce9da3113b5f0b8c00a60b1ce1d7e819d7a431d7c90ea0e5f", 0)
-	p384.N, _ = new(big.Int).SetString("0xffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52973", 0)
-	p384.H = big.NewInt(1)
-	p384.BitSize = 384
 
 	// See FIPS 186-3, section D.2.5
 	p521 = &Curve{Name: "p521"}
@@ -72,10 +60,9 @@ func testAllCurves(t *testing.T, f func(*testing.T, *Curve)) {
 		name string
 		*Curve
 	}{
+		{"TOY", toy},
+		{"SMALL", small},
 		{"SECP256K1", secp256k1},
-		{"P224", p224},
-		{"P256", p256},
-		{"P384", p384},
 		{"P521", p521},
 	}
 	if testing.Short() {
@@ -123,7 +110,7 @@ func TestInfinity(t *testing.T) {
 }
 
 func testInfinity(t *testing.T, curve *Curve) {
-	_, x, y, _ := elliptic.GenerateKey(curve, rand.Reader)
+	_, x, y, _ := curve.GenerateKey()
 	x, y = curve.ScalarMult(x, y, curve.N.Bytes())
 	if x.Sign() != 0 || y.Sign() != 0 {
 		t.Errorf("x^q != ∞")
@@ -173,7 +160,7 @@ func TestKeyGeneration(t *testing.T) {
 }
 
 func testKeyGeneration(t *testing.T, curve *Curve) {
-	_, x, y, err := elliptic.GenerateKey(curve, rand.Reader)
+	_, x, y, err := curve.GenerateKey()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,7 +171,7 @@ func testKeyGeneration(t *testing.T, curve *Curve) {
 
 func TestMarshal(t *testing.T) {
 	testAllCurves(t, func(t *testing.T, curve *Curve) {
-		_, x, y, err := elliptic.GenerateKey(curve, rand.Reader)
+		_, x, y, err := curve.GenerateKey()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -223,26 +210,6 @@ func testUnmarshalToLargeCoordinates(t *testing.T, curve *Curve) {
 	if X, Y := curve.Unmarshal(invalid); X != nil || Y != nil {
 		t.Errorf("Unmarshal accepts invalid X coordinate")
 	}
-
-	if curve == p256 {
-		// This is a point on the curve with a small y value, small enough that
-		// we can add p and still be within 32 bytes.
-		x, _ = new(big.Int).SetString("31931927535157963707678568152204072984517581467226068221761862915403492091210", 10)
-		y, _ = new(big.Int).SetString("5208467867388784005506817585327037698770365050895731383201516607147", 10)
-		y.Add(y, p)
-
-		if p.Cmp(y) > 0 || y.BitLen() != 256 {
-			t.Fatal("y not within expected range")
-		}
-
-		// marshal
-		x.FillBytes(invalid[1 : 1+byteLen])
-		y.FillBytes(invalid[1+byteLen:])
-
-		if X, Y := curve.Unmarshal(invalid); X != nil || Y != nil {
-			t.Errorf("Unmarshal accepts invalid Y coordinate")
-		}
-	}
 }
 
 // TestInvalidCoordinates tests big.Int values that are not valid field elements
@@ -260,7 +227,7 @@ func testInvalidCoordinates(t *testing.T, curve *Curve) {
 	}
 
 	p := curve.P
-	_, x, y, _ := elliptic.GenerateKey(curve, rand.Reader)
+	_, x, y, _ := curve.GenerateKey()
 	xx, yy := new(big.Int), new(big.Int)
 
 	// Check if the sign is getting dropped.
@@ -301,33 +268,12 @@ func testInvalidCoordinates(t *testing.T, curve *Curve) {
 }
 
 func TestMarshalCompressed(t *testing.T) {
-	t.Run("P-256/03", func(t *testing.T) {
-		data, _ := hex.DecodeString("031e3987d9f9ea9d7dd7155a56a86b2009e1e0ab332f962d10d8beb6406ab1ad79")
-		x, _ := new(big.Int).SetString("13671033352574878777044637384712060483119675368076128232297328793087057702265", 10)
-		y, _ := new(big.Int).SetString("66200849279091436748794323380043701364391950689352563629885086590854940586447", 10)
-		testMarshalCompressed(t, p256, x, y, data)
-	})
-	t.Run("P-256/02", func(t *testing.T) {
-		data, _ := hex.DecodeString("021e3987d9f9ea9d7dd7155a56a86b2009e1e0ab332f962d10d8beb6406ab1ad79")
-		x, _ := new(big.Int).SetString("13671033352574878777044637384712060483119675368076128232297328793087057702265", 10)
-		y, _ := new(big.Int).SetString("49591239931264812013903123569363872165694192725937750565648544718012157267504", 10)
-		testMarshalCompressed(t, p256, x, y, data)
-	})
-
-	t.Run("Invalid", func(t *testing.T) {
-		data, _ := hex.DecodeString("02fd4bf61763b46581fd9174d623516cf3c81edd40e29ffa2777fb6cb0ae3ce535")
-		X, Y := p256.UnmarshalCompressed(data)
-		if X != nil || Y != nil {
-			t.Error("expected an error for invalid encoding")
-		}
-	})
-
 	if testing.Short() {
 		t.Skip("skipping other curves on short test")
 	}
 
 	testAllCurves(t, func(t *testing.T, curve *Curve) {
-		_, x, y, err := elliptic.GenerateKey(curve, rand.Reader)
+		_, x, y, err := curve.GenerateKey()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -372,10 +318,9 @@ func benchmarkAllCurves(t *testing.B, f func(*testing.B, *Curve)) {
 		name  string
 		curve *Curve
 	}{
+		{"TOY", toy},
+		{"SMALL", small},
 		{"SECP256K1", secp256k1},
-		{"P256", p256},
-		{"P224", p224},
-		{"P384", p384},
 		{"P521", p521},
 	}
 	for _, test := range tests {
@@ -388,7 +333,7 @@ func benchmarkAllCurves(t *testing.B, f func(*testing.B, *Curve)) {
 
 func BenchmarkScalarBaseMult(b *testing.B) {
 	benchmarkAllCurves(b, func(b *testing.B, curve *Curve) {
-		priv, _, _, _ := elliptic.GenerateKey(curve, rand.Reader)
+		priv, _, _, _ := curve.GenerateKey()
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -401,8 +346,8 @@ func BenchmarkScalarBaseMult(b *testing.B) {
 
 func BenchmarkScalarMult(b *testing.B) {
 	benchmarkAllCurves(b, func(b *testing.B, curve *Curve) {
-		_, x, y, _ := elliptic.GenerateKey(curve, rand.Reader)
-		priv, _, _, _ := elliptic.GenerateKey(curve, rand.Reader)
+		_, x, y, _ := curve.GenerateKey()
+		priv, _, _, _ := curve.GenerateKey()
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
@@ -413,7 +358,7 @@ func BenchmarkScalarMult(b *testing.B) {
 
 func BenchmarkMarshalUnmarshal(b *testing.B) {
 	benchmarkAllCurves(b, func(b *testing.B, curve *Curve) {
-		_, x, y, _ := elliptic.GenerateKey(curve, rand.Reader)
+		_, x, y, _ := curve.GenerateKey()
 		b.Run("Uncompressed", func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {

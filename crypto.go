@@ -1,8 +1,6 @@
 package ecc
 
 import (
-	"crypto/elliptic"
-	"crypto/rand"
 	"math/big"
 )
 
@@ -46,7 +44,10 @@ func (curve *Curve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 	z := curve.hashToInt(hash)
 
 	for {
-		k, r, _, _ = elliptic.GenerateKey(curve, rand.Reader)
+		k, r, _, _ = curve.GenerateKey()
+		if r.Mod(r, curve.N).Sign() == 0 {
+			continue
+		}
 		s.Mul(r, s)
 		s.Add(s, z)
 		kInv := new(big.Int).SetBytes(k)
@@ -60,16 +61,16 @@ func (curve *Curve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 
 // Verify verifies the signature in r, s of hash using the public key, pub. Its
 // return value records whether the signature is valid.
-func (curve *Curve) Verify(Hx, Hy *big.Int, hash []byte, r, s *big.Int) bool {
+func (curve *Curve) Verify(hx, hy *big.Int, hash []byte, r, s *big.Int) bool {
 	N := curve.N
 	u1 := curve.hashToInt(hash)
 	u2 := s.ModInverse(s, N)
-	u1.Mul(u2, u1)
+	u1.Mul(u1, u2)
 	u1.Mod(u1, N)
 	u2.Mul(u2, r)
 	u2.Mod(u2, N)
 
-	x, y := curve.CombinedMult(Hx, Hy, u1.Bytes(), u2.Bytes())
+	x, y := curve.CombinedMult(hx, hy, u1.Bytes(), u2.Bytes())
 	if x.Sign() == 0 && y.Sign() == 0 {
 		return false
 	}
