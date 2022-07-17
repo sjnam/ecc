@@ -337,9 +337,7 @@ func BenchmarkScalarBaseMult(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			x, _ := curve.ScalarBaseMult(priv)
-			// Prevent the compiler from optimizing out the operation.
-			priv[0] ^= byte(x.Bits()[0])
+			curve.ScalarBaseMult(priv)
 		}
 	})
 }
