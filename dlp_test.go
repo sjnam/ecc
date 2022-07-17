@@ -6,6 +6,17 @@ import (
 )
 
 func TestECDLP(t *testing.T) {
+	t.Run("PollardRho", func(t *testing.T) {
+		t.Parallel()
+		testPollardRho(t)
+	})
+	t.Run("PohligHellman", func(t *testing.T) {
+		t.Parallel()
+		testPohligHellman(t)
+	})
+}
+
+func testPollardRho(t *testing.T) {
 	curve := new(Curve)
 	curve.P = big.NewInt(7919)
 	curve.A = big.NewInt(1001)
@@ -38,7 +49,7 @@ func TestECDLP(t *testing.T) {
 	}
 }
 
-func TestPohligHellman(t *testing.T) {
+func testPohligHellman(t *testing.T) {
 	// https://hgarrereyn.gitbooks.io/th3g3ntl3man-ctf-writeups/content/2017/picoCTF_2017/problems/cryptography/ECC2/ECC2.html
 	curve := &Curve{
 		H: new(big.Int).SetInt64(1),
