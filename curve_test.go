@@ -228,6 +228,9 @@ func testInvalidCoordinates(t *testing.T, curve *Curve) {
 
 	p := curve.P
 	_, x, y, _ := curve.GenerateKey()
+	for x.Sign() == 0 || y.Sign() == 0 {
+		_, x, y, _ = curve.GenerateKey()
+	}
 	xx, yy := new(big.Int), new(big.Int)
 
 	// Check if the sign is getting dropped.
