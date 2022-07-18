@@ -17,11 +17,6 @@ func testSignAndVerify(t *testing.T, curve *Curve) {
 		t.Errorf("Verify failed")
 		return
 	}
-
-	hashed[0] ^= 0xff
-	if curve.Verify(pubX, pubY, hashed, r, s) {
-		t.Errorf("Verify always works!")
-	}
 }
 
 func TestECDH(t *testing.T) {
