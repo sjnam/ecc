@@ -12,6 +12,7 @@ package ecc
 import (
 	"crypto/elliptic"
 	"crypto/rand"
+	"io"
 	"math/big"
 )
 
@@ -46,25 +47,31 @@ func (curve *Curve) Params() *elliptic.CurveParams {
 	}
 }
 
-// polynomial returns y² = x³ + Ax + B.
+// polynomial returns y² = x³ + ax + b.
 func (curve *Curve) polynomial(x *big.Int) *big.Int {
-	x3 := new(big.Int).Mul(x, x)             // x²
-	x3.Mul(x3, x)                            // x³
-	x3.Add(x3, new(big.Int).Mul(x, curve.A)) // x³+AX
-	x3.Add(x3, curve.B)                      // x³+AX+B
-	x3.Mod(x3, curve.P)                      //(x³+AX+B)%P
+	x3 := new(big.Int).Mul(x, x)
+	x3.Mul(x3, x)
+
+	aX := new(big.Int).Mul(x, curve.A)
+
+	x3.Add(x3, aX)
+	x3.Add(x3, curve.B)
+	x3.Mod(x3, curve.P)
 	return x3
 }
 
 // IsOnCurve reports whether the given (x,y) lies on the curve.
 func (curve *Curve) IsOnCurve(x, y *big.Int) bool {
-	if x.Sign() < 0 || x.Cmp(curve.P) >= 0 ||
-		y.Sign() < 0 || y.Cmp(curve.P) >= 0 {
+	P := curve.P
+	if x.Sign() < 0 || x.Cmp(P) >= 0 ||
+		y.Sign() < 0 || y.Cmp(P) >= 0 {
 		return false
 	}
 
-	y2 := new(big.Int).Mul(y, y) // y²
-	y2.Mod(y2, curve.P)          // y²%P
+	// y² = x³ + ax + b
+	y2 := new(big.Int).Mul(y, y)
+	y2.Mod(y2, P)
+
 	return curve.polynomial(x).Cmp(y2) == 0
 }
 
@@ -80,18 +87,19 @@ func zForAffine(x, y *big.Int) *big.Int {
 }
 
 // affineFromJacobian reverses the Jacobian transform. See the comment at the
-// top of the file.
+// top of the file. If the point is ∞ it returns 0, 0.
 func (curve *Curve) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.Int) {
 	if z.Sign() == 0 {
 		return new(big.Int), new(big.Int)
 	}
 
-	zInv := new(big.Int).ModInverse(z, curve.P)
-	zInvSq := new(big.Int).Mul(zInv, zInv)
-	xOut = new(big.Int).Mul(x, zInvSq)
+	zinv := new(big.Int).ModInverse(z, curve.P)
+	zinvsq := new(big.Int).Mul(zinv, zinv)
+
+	xOut = new(big.Int).Mul(x, zinvsq)
 	xOut.Mod(xOut, curve.P)
-	zInvSq.Mul(zInvSq, zInv)
-	yOut = new(big.Int).Mul(y, zInvSq)
+	zinvsq.Mul(zinvsq, zinv)
+	yOut = new(big.Int).Mul(y, zinvsq)
 	yOut.Mod(yOut, curve.P)
 	return
 }
@@ -108,91 +116,80 @@ func (curve *Curve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 
 // addJacobian takes two points in Jacobian coordinates, (x1, y1, z1) and
 // (x2, y2, z2) and returns their sum, also in Jacobian form.
-func (curve *Curve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (x3, y3, z3 *big.Int) {
-	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#addition-add-2007-bl
-	P := curve.P
-	x3, y3, z3 = new(big.Int), new(big.Int), new(big.Int)
+func (curve *Curve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int, *big.Int, *big.Int) {
+	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl
+	x3, y3, z3 := new(big.Int), new(big.Int), new(big.Int)
 	if z1.Sign() == 0 {
 		x3.Set(x2)
 		y3.Set(y2)
 		z3.Set(z2)
-		return
+		return x3, y3, z3
 	}
 	if z2.Sign() == 0 {
 		x3.Set(x1)
 		y3.Set(y1)
 		z3.Set(z1)
-		return
+		return x3, y3, z3
 	}
 
-	z1z1 := new(big.Int).Mul(z1, z1) // Z1Z1 = Z1²
-	z1z1.Mod(z1z1, P)
-	z2z2 := new(big.Int).Mul(z2, z2) // Z2Z2 = Z2²
-	z2z2.Mod(z2z2, P)
+	z1z1 := new(big.Int).Mul(z1, z1)
+	z1z1.Mod(z1z1, curve.P)
+	z2z2 := new(big.Int).Mul(z2, z2)
+	z2z2.Mod(z2z2, curve.P)
 
-	u1 := new(big.Int).Mul(x1, z2z2) // U1 = X1*Z2Z2
-	u1.Mod(u1, P)
-	u2 := new(big.Int).Mul(x2, z1z1) // U2 = X2*Z1Z1
-	u2.Mod(u2, P)
-
-	s1 := new(big.Int).Mul(y1, z2) // S1 = Y1*Z2*Z2Z2
-	s1.Mul(s1, z2z2)
-	s1.Mod(s1, P)
-	s2 := new(big.Int).Mul(y2, z1) // S2 = Y2*Z1*Z1Z1
-	s2.Mul(s2, z1z1)
-	s2.Mod(s2, P)
-
-	h := new(big.Int).Sub(u2, u1) // H = U2-U1
+	u1 := new(big.Int).Mul(x1, z2z2)
+	u1.Mod(u1, curve.P)
+	u2 := new(big.Int).Mul(x2, z1z1)
+	u2.Mod(u2, curve.P)
+	h := new(big.Int).Sub(u2, u1)
 	xEqual := h.Sign() == 0
 	if h.Sign() == -1 {
-		h.Add(h, P)
+		h.Add(h, curve.P)
 	}
-
-	i := new(big.Int).Lsh(h, 1) // I = (2*H)2
+	i := new(big.Int).Lsh(h, 1)
 	i.Mul(i, i)
-	j := new(big.Int).Mul(h, i) // J = H*I
+	j := new(big.Int).Mul(h, i)
 
-	r := new(big.Int).Sub(s2, s1) // r = 2*(S2-S1)
+	s1 := new(big.Int).Mul(y1, z2)
+	s1.Mul(s1, z2z2)
+	s1.Mod(s1, curve.P)
+	s2 := new(big.Int).Mul(y2, z1)
+	s2.Mul(s2, z1z1)
+	s2.Mod(s2, curve.P)
+	r := new(big.Int).Sub(s2, s1)
 	if r.Sign() == -1 {
-		r.Add(r, P)
+		r.Add(r, curve.P)
 	}
 	yEqual := r.Sign() == 0
 	if xEqual && yEqual {
 		return curve.doubleJacobian(x1, y1, z1)
 	}
 	r.Lsh(r, 1)
+	v := new(big.Int).Mul(u1, i)
 
-	v := new(big.Int).Mul(u1, i) // V = U1*I
-
-	x3.Set(r) // X3 = r2-J-2*V
+	x3.Set(r)
 	x3.Mul(x3, x3)
 	x3.Sub(x3, j)
 	x3.Sub(x3, v)
 	x3.Sub(x3, v)
-	x3.Mod(x3, P)
+	x3.Mod(x3, curve.P)
 
-	y3.Set(r) // Y3 = r*(V-X3)-2*S1*J
+	y3.Set(r)
 	v.Sub(v, x3)
 	y3.Mul(y3, v)
 	s1.Mul(s1, j)
 	s1.Lsh(s1, 1)
 	y3.Sub(y3, s1)
-	y3.Mod(y3, P)
+	y3.Mod(y3, curve.P)
 
-	z3.Add(z1, z2) // Z3 = ((Z1+Z2)2-Z1Z1-Z2Z2)*H
+	z3.Add(z1, z2)
 	z3.Mul(z3, z3)
 	z3.Sub(z3, z1z1)
-	if z3.Sign() == -1 {
-		z3.Add(z3, P)
-	}
 	z3.Sub(z3, z2z2)
-	if z3.Sign() == -1 {
-		z3.Add(z3, P)
-	}
 	z3.Mul(z3, h)
-	z3.Mod(z3, P)
+	z3.Mod(z3, curve.P)
 
-	return
+	return x3, y3, z3
 }
 
 // Double returns 2*(x,y)
@@ -208,60 +205,60 @@ func (curve *Curve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 func (curve *Curve) doubleJacobian(x, y, z *big.Int) (x3, y3, z3 *big.Int) {
 	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian.html#doubling-dbl-2007-bl
 	P := curve.P
-	xx := new(big.Int).Mul(x, x) // XX = X1²
+	xx := new(big.Int).Mul(x, x)
 	xx.Mod(xx, P)
-	yy := new(big.Int).Mul(y, y) // YY = Y1²
+	yy := new(big.Int).Mul(y, y)
 	yy.Mod(yy, P)
-	yyyy := new(big.Int).Mul(yy, yy) // YYYY = YY²
+	yyyy := new(big.Int).Mul(yy, yy)
 	yyyy.Mod(yyyy, P)
-	zz := new(big.Int).Mul(z, z) // ZZ = Z1²
+	zz := new(big.Int).Mul(z, z)
 	zz.Mod(zz, P)
-	zzzz := new(big.Int).Mul(zz, zz) // ZZ²
+	zzzz := new(big.Int).Mul(zz, zz)
 	zzzz.Mod(zzzz, P)
 
-	s := new(big.Int).Add(x, yy) // X1+YY
-	s.Mul(s, s)                  //(X1+YY)²
-	s.Sub(s, xx)                 //(X1+YY)²-XX
+	s := new(big.Int).Add(x, yy)
+	s.Mul(s, s)
+	s.Sub(s, xx)
 	if s.Sign() == -1 {
 		s.Add(s, P)
 	}
-	s.Sub(s, yyyy) //(X1+YY)²-XX-YYYY
+	s.Sub(s, yyyy)
 	if s.Sign() == -1 {
 		s.Add(s, P)
 	}
-	s.Lsh(s, 1) // 2*((X1+YY)²-XX-YYYY)
+	s.Lsh(s, 1)
 	s.Mod(s, P)
 
-	m := new(big.Int).Lsh(xx, 1)      // 2*XX
-	m.Add(m, xx)                      // 3*XX
-	m.Add(m, zzzz.Mul(curve.A, zzzz)) // 3*XX+A*ZZ²
+	m := new(big.Int).Lsh(xx, 1)
+	m.Add(m, xx)
+	m.Add(m, zzzz.Mul(curve.A, zzzz))
 	m.Mod(m, P)
 
-	t := new(big.Int).Mul(m, m)      // M²
-	t.Sub(t, new(big.Int).Lsh(s, 1)) // M²-2*S
+	t := new(big.Int).Mul(m, m)
+	t.Sub(t, new(big.Int).Lsh(s, 1))
 	if t.Sign() == -1 {
 		t.Add(t, P)
 	}
 	t.Mod(t, P)
 
 	x3 = t
-	s.Sub(s, t) // S-T
+	s.Sub(s, t)
 	if s.Sign() == -1 {
 		s.Add(s, P)
 	}
-	y3 = new(big.Int).Mul(m, s)   // M*(S-T)
-	y3.Sub(y3, yyyy.Lsh(yyyy, 3)) // M*(S-T)-8*YYYY
+	y3 = new(big.Int).Mul(m, s)
+	y3.Sub(y3, yyyy.Lsh(yyyy, 3))
 	if y3.Sign() == -1 {
 		y3.Add(y3, P)
 	}
 	y3.Mod(y3, P)
-	z3 = new(big.Int).Add(y, z) // Y1+Z1
-	z3.Mul(z3, z3)              //(Y1+Z1)²
-	z3.Sub(z3, yy)              //(Y1+Z1)²-YY
+	z3 = new(big.Int).Add(y, z)
+	z3.Mul(z3, z3)
+	z3.Sub(z3, yy)
 	if z3.Sign() == -1 {
 		z3.Add(z3, P)
 	}
-	z3.Sub(z3, zz) //(Y1+Z1)²-YY-ZZ
+	z3.Sub(z3, zz)
 	if z3.Sign() == -1 {
 		z3.Add(z3, P)
 	}
@@ -299,7 +296,42 @@ func (curve *Curve) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
 func (curve *Curve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
 	x1, y1 := curve.ScalarBaseMult(baseScalar)
 	x2, y2 := curve.ScalarMult(bigX, bigY, scalar)
+	// return curve.Add(x1, y1, x2, y2)
 	return curve.Add(x1, y1, x2, y2)
+}
+
+var mask = []byte{0xff, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f}
+
+// GenerateKey returns a public/private key pair.
+func (curve *Curve) GenerateKey() (priv []byte, x, y *big.Int, err error) {
+	N := curve.Params().N
+	bitSize := N.BitLen()
+	byteLen := (bitSize + 7) / 8
+	if byteLen == 1 {
+		byteLen = 2
+	}
+	priv = make([]byte, byteLen)
+
+	for x == nil {
+		_, err = io.ReadFull(rand.Reader, priv)
+		if err != nil {
+			return
+		}
+		// We have to mask off any excess bits in the case that the size of the
+		// underlying field is not a whole number of bytes.
+		priv[0] &= mask[bitSize%8]
+		// This is because, in tests, rand will return all zeros and we don't
+		// want to get the point at infinity and loop forever.
+		priv[1] ^= 0x42
+
+		// If the scalar is out of range, sample another random number.
+		if new(big.Int).SetBytes(priv).Cmp(N) >= 0 {
+			continue
+		}
+
+		x, y = curve.ScalarBaseMult(priv)
+	}
+	return
 }
 
 // UnmarshalCompressed converts a point, serialized by MarshalCompressed, into
@@ -318,6 +350,7 @@ func (curve *Curve) UnmarshalCompressed(data []byte) (x, y *big.Int) {
 	if x.Cmp(p) >= 0 {
 		return nil, nil
 	}
+	// y² = x³ + ax + b
 	y = curve.polynomial(x)
 	y = y.ModSqrt(y, p)
 	if y == nil {
@@ -332,25 +365,6 @@ func (curve *Curve) UnmarshalCompressed(data []byte) (x, y *big.Int) {
 	return
 }
 
-// GenerateKey returns a public/private key pair.
-func (curve *Curve) GenerateKey() (priv []byte, x, y *big.Int, err error) {
-	var k *big.Int
-	if curve.BitSize < 9 {
-		k, err = rand.Int(rand.Reader, curve.N)
-		if err != nil {
-			return
-		}
-		if k.Sign() == 0 {
-			k.SetInt64(1)
-		}
-		priv = k.Bytes()
-		x, y = curve.ScalarBaseMult(priv)
-	} else {
-		priv, x, y, err = elliptic.GenerateKey(curve, rand.Reader)
-	}
-	return
-}
-
 func panicIfNotOnCurve(curve *Curve, x, y *big.Int) {
 	// (0, 0) is the point at infinity by convention. It's ok to operate on it,
 	// although IsOnCurve is documented to return false for it. See Issue 37294.
@@ -359,6 +373,6 @@ func panicIfNotOnCurve(curve *Curve, x, y *big.Int) {
 	}
 
 	if !curve.IsOnCurve(x, y) {
-		panic("crypto/elliptic: attempted operation on invalid point")
+		panic("ecc: attempted operation on invalid point")
 	}
 }
