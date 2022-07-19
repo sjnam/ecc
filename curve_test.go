@@ -99,7 +99,7 @@ func TestOffCurve(t *testing.T) {
 		x.FillBytes(b[1 : 1+byteLen])
 		y.FillBytes(b[1+byteLen : 1+2*byteLen])
 
-		x1, y1 := curve.Unmarshal(b)
+		x1, y1 := elliptic.Unmarshal(curve, b)
 		if x1 != nil || y1 != nil {
 			t.Errorf("unmarshaling a point not on the curve succeeded")
 		}
@@ -146,12 +146,12 @@ func testInfinity(t *testing.T, curve *Curve) {
 		t.Errorf("IsOnCurve(∞) == true")
 	}
 
-	if xx, yy := curve.Unmarshal(elliptic.Marshal(curve, x, y)); xx != nil || yy != nil {
+	if xx, yy := elliptic.Unmarshal(curve, elliptic.Marshal(curve, x, y)); xx != nil || yy != nil {
 		t.Errorf("Unmarshal(Marshal(∞)) did not return an error")
 	}
 	// We don't test UnmarshalCompressed(MarshalCompressed(∞)) because there are
 	// two valid points with x = 0.
-	if xx, yy := curve.Unmarshal([]byte{0x00}); xx != nil || yy != nil {
+	if xx, yy := elliptic.Unmarshal(curve, []byte{0x00}); xx != nil || yy != nil {
 		t.Errorf("Unmarshal(∞) did not return an error")
 	}
 }
@@ -177,7 +177,7 @@ func TestMarshal(t *testing.T) {
 			t.Fatal(err)
 		}
 		serialized := elliptic.Marshal(curve, x, y)
-		xx, yy := curve.Unmarshal(serialized)
+		xx, yy := elliptic.Unmarshal(curve, serialized)
 		if xx == nil {
 			t.Fatal("failed to unmarshal")
 		}
@@ -208,7 +208,7 @@ func testUnmarshalToLargeCoordinates(t *testing.T, curve *Curve) {
 	x.FillBytes(invalid[1 : 1+byteLen])
 	y.FillBytes(invalid[1+byteLen:])
 
-	if X, Y := curve.Unmarshal(invalid); X != nil || Y != nil {
+	if X, Y := elliptic.Unmarshal(curve, invalid); X != nil || Y != nil {
 		t.Errorf("Unmarshal accepts invalid X coordinate")
 	}
 }
@@ -365,7 +365,7 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				buf := elliptic.Marshal(curve, x, y)
-				xx, yy := curve.Unmarshal(buf)
+				xx, yy := elliptic.Unmarshal(curve, buf)
 				if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
 					b.Error("Unmarshal output different from Marshal input")
 				}
@@ -375,7 +375,7 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				buf := elliptic.Marshal(curve, x, y)
-				xx, yy := curve.Unmarshal(buf)
+				xx, yy := elliptic.Unmarshal(curve, buf)
 				if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
 					b.Error("Unmarshal output different from Marshal input")
 				}

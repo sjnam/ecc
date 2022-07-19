@@ -302,29 +302,6 @@ func (curve *Curve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte)
 	return curve.Add(x1, y1, x2, y2)
 }
 
-// Unmarshal converts a point, serialized by Marshal, into an x, y pair. It is
-// an error if the point is not in uncompressed form, is not on the curve, or is
-// the point at infinity. On error, x = nil.
-func (curve *Curve) Unmarshal(data []byte) (x, y *big.Int) {
-	byteLen := (curve.BitSize + 7) / 8
-	if len(data) != 1+2*byteLen {
-		return nil, nil
-	}
-	if data[0] != 4 { // uncompressed form
-		return nil, nil
-	}
-	p := curve.P
-	x = new(big.Int).SetBytes(data[1 : 1+byteLen])
-	y = new(big.Int).SetBytes(data[1+byteLen:])
-	if x.Cmp(p) >= 0 || y.Cmp(p) >= 0 {
-		return nil, nil
-	}
-	if !curve.IsOnCurve(x, y) {
-		return nil, nil
-	}
-	return
-}
-
 // UnmarshalCompressed converts a point, serialized by MarshalCompressed, into
 // an x, y pair. It is an error if the point is not in compressed form, is not
 // on the curve, or is the point at infinity. On error, x = nil.
