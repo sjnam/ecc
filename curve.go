@@ -118,6 +118,8 @@ func (curve *Curve) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
 // (x2, y2, z2) and returns their sum, also in Jacobian form.
 func (curve *Curve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int, *big.Int, *big.Int) {
 	// See https://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl
+	P := curve.P
+
 	x3, y3, z3 := new(big.Int), new(big.Int), new(big.Int)
 	if z1.Sign() == 0 {
 		x3.Set(x2)
@@ -133,18 +135,18 @@ func (curve *Curve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int, *big
 	}
 
 	z1z1 := new(big.Int).Mul(z1, z1)
-	z1z1.Mod(z1z1, curve.P)
+	z1z1.Mod(z1z1, P)
 	z2z2 := new(big.Int).Mul(z2, z2)
-	z2z2.Mod(z2z2, curve.P)
+	z2z2.Mod(z2z2, P)
 
 	u1 := new(big.Int).Mul(x1, z2z2)
-	u1.Mod(u1, curve.P)
+	u1.Mod(u1, P)
 	u2 := new(big.Int).Mul(x2, z1z1)
-	u2.Mod(u2, curve.P)
+	u2.Mod(u2, P)
 	h := new(big.Int).Sub(u2, u1)
 	xEqual := h.Sign() == 0
 	if h.Sign() == -1 {
-		h.Add(h, curve.P)
+		h.Add(h, P)
 	}
 	i := new(big.Int).Lsh(h, 1)
 	i.Mul(i, i)
@@ -152,13 +154,13 @@ func (curve *Curve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int, *big
 
 	s1 := new(big.Int).Mul(y1, z2)
 	s1.Mul(s1, z2z2)
-	s1.Mod(s1, curve.P)
+	s1.Mod(s1, P)
 	s2 := new(big.Int).Mul(y2, z1)
 	s2.Mul(s2, z1z1)
-	s2.Mod(s2, curve.P)
+	s2.Mod(s2, P)
 	r := new(big.Int).Sub(s2, s1)
 	if r.Sign() == -1 {
-		r.Add(r, curve.P)
+		r.Add(r, P)
 	}
 	yEqual := r.Sign() == 0
 	if xEqual && yEqual {
@@ -172,7 +174,7 @@ func (curve *Curve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int, *big
 	x3.Sub(x3, j)
 	x3.Sub(x3, v)
 	x3.Sub(x3, v)
-	x3.Mod(x3, curve.P)
+	x3.Mod(x3, P)
 
 	y3.Set(r)
 	v.Sub(v, x3)
@@ -180,14 +182,14 @@ func (curve *Curve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int, *big
 	s1.Mul(s1, j)
 	s1.Lsh(s1, 1)
 	y3.Sub(y3, s1)
-	y3.Mod(y3, curve.P)
+	y3.Mod(y3, P)
 
 	z3.Add(z1, z2)
 	z3.Mul(z3, z3)
 	z3.Sub(z3, z1z1)
 	z3.Sub(z3, z2z2)
 	z3.Mul(z3, h)
-	z3.Mod(z3, curve.P)
+	z3.Mod(z3, P)
 
 	return x3, y3, z3
 }
@@ -304,7 +306,7 @@ var mask = []byte{0xff, 0x1, 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f}
 
 // GenerateKey returns a public/private key pair.
 func (curve *Curve) GenerateKey() (priv []byte, x, y *big.Int, err error) {
-	N := curve.Params().N
+	N := curve.N
 	bitSize := N.BitLen()
 	byteLen := (bitSize + 7) / 8
 	if byteLen == 1 {

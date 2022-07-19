@@ -46,7 +46,7 @@ func (curve *Curve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 
 	for {
 		k, r, _, _ = curve.GenerateKey()
-		if r.Mod(r, curve.N).Sign() == 0 {
+		if r.Mod(r, N).Sign() == 0 {
 			continue
 		}
 		s.Mul(r, s)
