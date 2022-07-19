@@ -320,7 +320,7 @@ func (curve *Curve) GenerateKey() (priv []byte, x, y *big.Int, err error) {
 		// We have to mask off any excess bits in the case that the size of the
 		// underlying field is not a whole number of bytes.
 		priv[0] &= mask[bitSize%8]
-		// This is because, in tests, rand will return all zeros and we don't
+		// This is because, in tests, rand will return all zeros, and we don't
 		// want to get the point at infinity and loop forever.
 		priv[1] ^= 0x42
 
