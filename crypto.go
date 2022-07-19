@@ -1,13 +1,14 @@
 package ecc
 
 import (
+	"crypto/elliptic"
 	"math/big"
 )
 
 // Encrypt encrypts with ECDH
 func (curve *Curve) Encrypt(priv []byte, pubX, pubY *big.Int) []byte {
 	ssx, ssy := curve.ScalarMult(pubX, pubY, priv)
-	return curve.Marshal(ssx, ssy)
+	return elliptic.Marshal(curve, ssx, ssy)
 }
 
 // hashToInt converts a hash value to an integer. There is some disagreement

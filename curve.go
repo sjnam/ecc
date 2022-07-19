@@ -302,36 +302,6 @@ func (curve *Curve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte)
 	return curve.Add(x1, y1, x2, y2)
 }
 
-// Marshal converts a point on the curve into the uncompressed form specified in
-// SEC 1, Version 2.0, Section 2.3.3. If the point is not on the curve (or is
-// the conventional point at infinity), the behavior is undefined.
-func (curve *Curve) Marshal(x, y *big.Int) []byte {
-	panicIfNotOnCurve(curve, x, y)
-
-	byteLen := (curve.BitSize + 7) / 8
-
-	ret := make([]byte, 1+2*byteLen)
-	ret[0] = 4 // uncompressed point
-
-	x.FillBytes(ret[1 : 1+byteLen])
-	y.FillBytes(ret[1+byteLen : 1+2*byteLen])
-
-	return ret
-}
-
-// MarshalCompressed converts a point on the curve into the compressed form
-// specified in SEC 1, Version 2.0, Section 2.3.3. If the point is not on the
-// curve (or is the conventional point at infinity), the behavior is undefined.
-func (curve *Curve) MarshalCompressed(x, y *big.Int) []byte {
-	panicIfNotOnCurve(curve, x, y)
-
-	byteLen := (curve.BitSize + 7) / 8
-	compressed := make([]byte, 1+byteLen)
-	compressed[0] = byte(y.Bit(0)) | 2
-	x.FillBytes(compressed[1:])
-	return compressed
-}
-
 // Unmarshal converts a point, serialized by Marshal, into an x, y pair. It is
 // an error if the point is not in uncompressed form, is not on the curve, or is
 // the point at infinity. On error, x = nil.
@@ -388,7 +358,7 @@ func (curve *Curve) UnmarshalCompressed(data []byte) (x, y *big.Int) {
 // GenerateKey returns a public/private key pair.
 func (curve *Curve) GenerateKey() (priv []byte, x, y *big.Int, err error) {
 	var k *big.Int
-	if curve.N.BitLen() < 9 {
+	if curve.BitSize < 9 {
 		k, err = rand.Int(rand.Reader, curve.N)
 		if err != nil {
 			return

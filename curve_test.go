@@ -2,6 +2,7 @@ package ecc
 
 import (
 	"bytes"
+	"crypto/elliptic"
 	"math/big"
 	"testing"
 )
@@ -145,7 +146,7 @@ func testInfinity(t *testing.T, curve *Curve) {
 		t.Errorf("IsOnCurve(∞) == true")
 	}
 
-	if xx, yy := curve.Unmarshal(curve.Marshal(x, y)); xx != nil || yy != nil {
+	if xx, yy := curve.Unmarshal(elliptic.Marshal(curve, x, y)); xx != nil || yy != nil {
 		t.Errorf("Unmarshal(Marshal(∞)) did not return an error")
 	}
 	// We don't test UnmarshalCompressed(MarshalCompressed(∞)) because there are
@@ -175,7 +176,7 @@ func TestMarshal(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		serialized := curve.Marshal(x, y)
+		serialized := elliptic.Marshal(curve, x, y)
 		xx, yy := curve.Unmarshal(serialized)
 		if xx == nil {
 			t.Fatal("failed to unmarshal")
@@ -288,7 +289,7 @@ func testMarshalCompressed(t *testing.T, curve *Curve, x, y *big.Int, want []byt
 	if !curve.IsOnCurve(x, y) {
 		t.Fatal("invalid test point")
 	}
-	got := curve.MarshalCompressed(x, y)
+	got := elliptic.MarshalCompressed(curve, x, y)
 	if want != nil && !bytes.Equal(got, want) {
 		t.Errorf("got unexpected MarshalCompressed result: got %x, want %x", got, want)
 	}
@@ -363,7 +364,7 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
 		b.Run("Uncompressed", func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				buf := curve.Marshal(x, y)
+				buf := elliptic.Marshal(curve, x, y)
 				xx, yy := curve.Unmarshal(buf)
 				if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
 					b.Error("Unmarshal output different from Marshal input")
@@ -373,7 +374,7 @@ func BenchmarkMarshalUnmarshal(b *testing.B) {
 		b.Run("Compressed", func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				buf := curve.Marshal(x, y)
+				buf := elliptic.Marshal(curve, x, y)
 				xx, yy := curve.Unmarshal(buf)
 				if xx.Cmp(x) != 0 || yy.Cmp(y) != 0 {
 					b.Error("Unmarshal output different from Marshal input")
