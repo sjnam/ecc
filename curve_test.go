@@ -11,28 +11,28 @@ var toy, small, secp256k1, p521 *Curve
 
 func init() {
 	toy = &Curve{
-		Name: "toy curve",
-		P:    big.NewInt(29),
-		A:    big.NewInt(4),
-		B:    big.NewInt(20),
-		Gx:   big.NewInt(1),
-		Gy:   big.NewInt(5),
-		N:    big.NewInt(37),
-		H:    big.NewInt(1),
+		Name:    "toy curve",
+		P:       big.NewInt(29),
+		A:       big.NewInt(4),
+		B:       big.NewInt(20),
+		Gx:      big.NewInt(1),
+		Gy:      big.NewInt(5),
+		N:       big.NewInt(37),
+		H:       big.NewInt(1),
+		BitSize: 6,
 	}
-	toy.BitSize = toy.N.BitLen()
 
 	small = &Curve{
-		Name: "small curve",
-		P:    big.NewInt(229),
-		A:    big.NewInt(1),
-		B:    big.NewInt(44),
-		Gx:   big.NewInt(5),
-		Gy:   big.NewInt(116),
-		N:    big.NewInt(239),
-		H:    big.NewInt(1),
+		Name:    "small curve",
+		P:       big.NewInt(229),
+		A:       big.NewInt(1),
+		B:       big.NewInt(44),
+		Gx:      big.NewInt(5),
+		Gy:      big.NewInt(116),
+		N:       big.NewInt(239),
+		H:       big.NewInt(1),
+		BitSize: 8,
 	}
-	small.BitSize = small.N.BitLen()
 
 	secp256k1 = &Curve{Name: "secp256k1"}
 	secp256k1.P, _ = new(big.Int).SetString("0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f", 0)
@@ -239,7 +239,7 @@ func testInvalidCoordinates(t *testing.T, curve *Curve) {
 	checkIsOnCurveFalse("-x, y", xx, y)
 	yy.Neg(y)
 	checkIsOnCurveFalse("x, -y", x, yy)
-	//
+
 	// Check if negative values are reduced modulo P.
 	xx.Sub(x, p)
 	checkIsOnCurveFalse("x-P, y", xx, y)
@@ -259,8 +259,8 @@ func testInvalidCoordinates(t *testing.T, curve *Curve) {
 	checkIsOnCurveFalse("x, y+2⁵³⁵", x, yy)
 
 	// Check if P is treated like zero (if possible).
-	// y^2 = x^3 - 3x + B
-	// y = mod_sqrt(x^3 - 3x + B)
+	// y^2 = x^3 + ax + b
+	// y = mod_sqrt(x^3 + ax + b)
 	// y = mod_sqrt(B) if x = 0
 	// If there is no modsqrt, there is no point with x = 0, can't test x = P.
 	if yy := new(big.Int).ModSqrt(curve.B, p); yy != nil {

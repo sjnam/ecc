@@ -17,13 +17,13 @@ func TestECDLP(t *testing.T) {
 }
 
 func testPollardRho(t *testing.T) {
-	curve := new(Curve)
-	curve.P = big.NewInt(7919)
-	curve.A = big.NewInt(1001)
-	curve.B = big.NewInt(75)
-	curve.N = big.NewInt(7889)
-	curve.BitSize = 16
-
+	curve := &Curve{
+		P:       big.NewInt(7919),
+		A:       big.NewInt(1001),
+		B:       big.NewInt(75),
+		N:       big.NewInt(7889),
+		BitSize: 16,
+	}
 	px := big.NewInt(4023)
 	py := big.NewInt(6036)
 
