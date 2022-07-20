@@ -24,6 +24,41 @@ func testSignAndVerify(t *testing.T, curve *Curve) {
 	}
 }
 
+func BenchmarkSign(b *testing.B) {
+	benchmarkAllCurves(b, func(b *testing.B, curve *Curve) {
+		priv, _, _, err := curve.GenerateKey()
+		if err != nil {
+			b.Fatal(err)
+		}
+		hashed := []byte("testing")
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			curve.Sign(priv, hashed)
+		}
+	})
+}
+
+func BenchmarkVerify(b *testing.B) {
+	benchmarkAllCurves(b, func(b *testing.B, curve *Curve) {
+		priv, pubX, pubY, err := curve.GenerateKey()
+		if err != nil {
+			b.Fatal(err)
+		}
+		hashed := []byte("testing")
+		r, s := curve.Sign(priv, hashed)
+
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			if !curve.Verify(pubX, pubY, hashed, r, s) {
+				b.Fatal("verify failed")
+			}
+		}
+	})
+}
+
 func TestECDH(t *testing.T) {
 	testAllCurves(t, testECDH)
 }

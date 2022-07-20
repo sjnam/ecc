@@ -42,13 +42,13 @@ func (curve *Curve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 	var k []byte
 	N := curve.N
 	s = new(big.Int).SetBytes(priv)
-	z := curve.hashToInt(hash)
 
 	for {
 		k, r, _, _ = curve.GenerateKey()
 		if r.Mod(r, N).Sign() == 0 {
 			continue
 		}
+		z := curve.hashToInt(hash)
 		s.Mul(r, s)
 		s.Add(s, z)
 		kInv := new(big.Int).SetBytes(k)
@@ -65,7 +65,7 @@ func (curve *Curve) Sign(priv []byte, hash []byte) (r, s *big.Int) {
 func (curve *Curve) Verify(hx, hy *big.Int, hash []byte, r, s *big.Int) bool {
 	N := curve.N
 	u1 := curve.hashToInt(hash)
-	u2 := s.ModInverse(s, N)
+	u2 := new(big.Int).ModInverse(s, N)
 	u1.Mul(u1, u2)
 	u1.Mod(u1, N)
 	u2.Mul(u2, r)
