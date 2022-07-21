@@ -166,7 +166,7 @@ func testKeyGeneration(t *testing.T, curve *Curve) {
 		t.Fatal(err)
 	}
 	if !curve.IsOnCurve(x, y) {
-		t.Errorf("public key invalid: %s", err)
+		t.Errorf("public key invalid")
 	}
 }
 
