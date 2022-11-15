@@ -238,7 +238,6 @@ func traceMod(c *Curve, ell *big.Int) <-chan interface{} {
 				qr.h = qr.h.GCD(divPolyFactor, q)
 				log.Printf("found %d-divpoly factor of degree %d\n",
 					ell, qr.h.Deg())
-				err = nil
 			case noCharacterPoly:
 				ch <- &trace{nil, err}
 				return
