@@ -36,7 +36,7 @@ func (c *Curve) Sign(priv *big.Int, hash []byte) (r, s *big.Int) {
 		if r.Sign() == 0 {
 			continue
 		}
-		kInv := fermatInverse(k, N)
+		kInv := FermatInverse(k, N)
 
 		z := c.hashToInt(hash)
 		s = new(big.Int).Set(priv)
@@ -61,7 +61,7 @@ func (c *Curve) Verify(hx, hy *big.Int, hash []byte, r, s *big.Int) bool {
 	}
 
 	u1 := c.hashToInt(hash)
-	u2 := fermatInverse(s, N)
+	u2 := FermatInverse(s, N)
 	u1.Mul(u1, u2)
 	u1.Mod(u1, N)
 	u2.Mul(u2, r)

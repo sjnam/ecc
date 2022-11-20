@@ -11,7 +11,7 @@ func cache(c *Curve, n int64, dp Poly) Poly {
 	return dp
 }
 
-func (c *Curve) divpoly(n int64) Poly {
+func (c *Curve) DivPoly(n int64) Poly {
 	if c.dpCache == nil {
 		c.dpCache = make(map[int64]Poly)
 	}
@@ -45,11 +45,11 @@ func (c *Curve) divpoly(n int64) Poly {
 
 	m := n / 2
 
-	p2m := c.divpoly(m - 2)
-	p1m := c.divpoly(m - 1)
-	pm := c.divpoly(m)
-	pm1 := c.divpoly(m + 1)
-	pm2 := c.divpoly(m + 2)
+	p2m := c.DivPoly(m - 2)
+	p1m := c.DivPoly(m - 1)
+	pm := c.DivPoly(m)
+	pm1 := c.DivPoly(m + 1)
+	pm2 := c.DivPoly(m + 2)
 
 	p1me2 := p1m.Exp(big.NewInt(2), q)
 	pme3 := pm.Exp(big.NewInt(3), q)

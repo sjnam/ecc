@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-func bigFromDecimal(s string) *big.Int {
+func BigFromDecimal(s string) *big.Int {
 	b, ok := new(big.Int).SetString(s, 10)
 	if !ok {
 		panic("ecc: internal error: invalid encoding")
@@ -13,7 +13,7 @@ func bigFromDecimal(s string) *big.Int {
 	return b
 }
 
-func bigFromHex(s string) *big.Int {
+func BigFromHex(s string) *big.Int {
 	b, ok := new(big.Int).SetString(s, 16)
 	if !ok {
 		panic("ecc: internal error: invalid encoding")
@@ -21,7 +21,7 @@ func bigFromHex(s string) *big.Int {
 	return b
 }
 
-func nextPrime(n *big.Int) *big.Int {
+func NextPrime(n *big.Int) *big.Int {
 	if n.Cmp(big.NewInt(1)) <= 0 {
 		return big.NewInt(2)
 	}
@@ -47,8 +47,8 @@ func nextPrime(n *big.Int) *big.Int {
 	return p
 }
 
-// Chinese remainder theorem
-func crt(a, n []*big.Int) *big.Int {
+// CRT Chinese remainder theorem
+func CRT(a, n []*big.Int) *big.Int {
 	if a == nil || n == nil {
 		return nil
 	}
@@ -68,13 +68,13 @@ func crt(a, n []*big.Int) *big.Int {
 	return c.Mod(&c, p)
 }
 
-// fermatInverse calculates the inverse of k in GF(P) using Fermat's method
+// FermatInverse calculates the inverse of k in GF(P) using Fermat's method
 // (exponentiation modulo P - 2, per Euler's theorem).
-func fermatInverse(k, N *big.Int) *big.Int {
+func FermatInverse(k, N *big.Int) *big.Int {
 	return new(big.Int).Exp(k, new(big.Int).Sub(N, big.NewInt(2)), N)
 }
 
-func fanIn(done <-chan interface{}, channels ...<-chan interface{}) <-chan interface{} {
+func FanIn(done <-chan interface{}, channels ...<-chan interface{}) <-chan interface{} {
 	var wg sync.WaitGroup
 	multiplexedStream := make(chan interface{})
 
@@ -102,15 +102,15 @@ func fanIn(done <-chan interface{}, channels ...<-chan interface{}) <-chan inter
 	return multiplexedStream
 }
 
-func toTrace(done <-chan interface{}, stream <-chan interface{}) <-chan *trace {
-	ch := make(chan *trace)
+func ToTrace(done <-chan interface{}, stream <-chan interface{}) <-chan *Trace {
+	ch := make(chan *Trace)
 	go func() {
 		defer close(ch)
 		for v := range stream {
 			select {
 			case <-done:
 				return
-			case ch <- v.(*trace):
+			case ch <- v.(*Trace):
 			}
 		}
 	}()

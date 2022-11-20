@@ -188,5 +188,5 @@ func (c *Curve) PohligHellman(px, py, hx, hy *big.Int) *big.Int {
 	}
 	c.N.Set(N)
 
-	return crt(dLogs, res)
+	return CRT(dLogs, res)
 }

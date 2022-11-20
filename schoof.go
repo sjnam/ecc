@@ -8,8 +8,8 @@ import (
 
 // https://cocalc.com/share/public_paths/600832aafc89f1098d5415b39eec4fbaa63ccab1
 
-// Elements of endo(E[ell]) are represented as pairs (a,b*y), with a,b in Fp[x]/(h(x)),
-// where h is the ell-th divpoly (or a factor of it, for example, the kernel poly
+// Elements of Endo(E[ell]) are represented as pairs (a,b*y), with a,b in Fp[x]/(h(x)),
+// where h is the ell-th DivPoly (or a factor of it, for example, the kernel poly
 // of an isogeny)
 // The y is implicit, but must be accounted for when applying the group law --
 // using the curve equation y^2=f(x) we can replace y^2 with poly(x) whenever it appears
@@ -19,49 +19,49 @@ import (
 // where poly is the image of x^3+Ax+B in Fp[x]/(h(x)) -- we need both because
 // if deg(h)<= 3 we cannot recover A from (x^3+Ax+B) mod h(x)
 
-type qring struct {
+type Qring struct {
 	h Poly
 	q *big.Int
 }
 
-// endo is the Frobenius endomorphism
-type endo struct {
-	qr   *qring
+// Endo is the Frobenius endomorphism
+type Endo struct {
+	qr   *Qring
 	x, y Poly
 }
 
-type trace struct {
+type Trace struct {
 	tr  *big.Int
 	err error
 }
 
 var (
-	// global variable for factor of the division poly when zeroDivisionError's
-	divPolyFactor Poly
+	// DivPolyFactor global variable for factor of the division poly when ErrZeroDivision's
+	DivPolyFactor Poly
 
-	zeroDivisionError = errors.New("divided by zero")
-	noCharacterPoly   = errors.New("frobenius satisfies no character poly")
+	ErrZeroDivision    = errors.New("divided by zero")
+	ErrNoCharacterPoly = errors.New("frobenius satisfies no character poly")
 )
 
-func (qr *qring) poly(p Poly) Poly {
+func (qr *Qring) poly(p Poly) Poly {
 	_, r := p.Div(qr.h, qr.q)
 	return r
 }
 
-func newEnd(qr *qring, x, y Poly) *endo {
-	return &endo{
+func NewEnd(qr *Qring, x, y Poly) *Endo {
+	return &Endo{
 		qr: qr,
 		x:  qr.poly(x),
 		y:  qr.poly(y),
 	}
 }
 
-func eq(pe, qe *endo) bool {
+func Eq(pe, qe *Endo) bool {
 	return pe.x.Cmp(qe.x) == 0 && pe.y.Cmp(qe.y) == 0
 }
 
-// add endomorphisms P and Q in End(E[ell])
-func add(pe, qe *endo, A *big.Int, f Poly) (*endo, error) {
+// Add endomorphisms P and Q in End(E[ell])
+func Add(pe, qe *Endo, A *big.Int, f Poly) (*Endo, error) {
 	if pe == nil {
 		return qe, nil
 	}
@@ -77,7 +77,7 @@ func add(pe, qe *endo, A *big.Int, f Poly) (*endo, error) {
 
 	if a1.Cmp(a2) == 0 {
 		if b1.Cmp(b2) == 0 {
-			return dbl(pe, A, f)
+			return Double(pe, A, f)
 		}
 		return nil, nil
 	}
@@ -86,8 +86,8 @@ func add(pe, qe *endo, A *big.Int, f Poly) (*endo, error) {
 	a := a2.Sub(a1, q)
 	inv := a.ModInverse(h, q)
 	if inv == nil {
-		divPolyFactor = a
-		return nil, zeroDivisionError
+		DivPolyFactor = a
+		return nil, ErrZeroDivision
 	}
 
 	m := qpoly(b.Mul(inv, q))
@@ -95,11 +95,11 @@ func add(pe, qe *endo, A *big.Int, f Poly) (*endo, error) {
 	a3 := qpoly(f.Mul(m2, q)).Sub(a1.Add(a2, q), q)
 	b3 := qpoly(m.Mul(a1.Sub(a3, q), q)).Sub(b1, q)
 
-	return newEnd(pe.qr, a3, b3), nil
+	return NewEnd(pe.qr, a3, b3), nil
 }
 
-// double the endomorphism P in End(E[ell])
-func dbl(pe *endo, A *big.Int, f Poly) (*endo, error) {
+// Double the endomorphism P in End(E[ell])
+func Double(pe *Endo, A *big.Int, f Poly) (*Endo, error) {
 	if pe == nil {
 		return nil, nil
 	}
@@ -115,35 +115,35 @@ func dbl(pe *endo, A *big.Int, f Poly) (*endo, error) {
 	de := qpoly(b1.Mul(f, q)).MulInt(2, q)
 	inv := de.ModInverse(h, q)
 	if inv == nil {
-		divPolyFactor = de
-		return nil, zeroDivisionError
+		DivPolyFactor = de
+		return nil, ErrZeroDivision
 	}
 
 	m = qpoly(m.Mul(inv, q))
 	a3 := qpoly(f.Mul(m.Mul(m, q), q)).Sub(a1.MulInt(2, q), q)
 	b3 := qpoly(m.Mul(a1.Sub(a3, q), q)).Sub(b1, q)
 
-	return newEnd(pe.qr, a3, b3), nil
+	return NewEnd(pe.qr, a3, b3), nil
 }
 
-// negate the endomorphism P in End(E[ell])
-func neg(pe *endo) *endo {
+// Neg negate the endomorphism P in End(E[ell])
+func Neg(pe *Endo) *Endo {
 	if pe == nil {
 		return nil
 	}
 
-	return newEnd(pe.qr, pe.x, pe.y.Neg())
+	return NewEnd(pe.qr, pe.x, pe.y.Neg())
 }
 
-// compute the scalar multiple n*P in End(E[ell]) using double and add
-func smul(pe *endo, n *big.Int, A *big.Int, f Poly) (*endo, error) {
+// ScalarMul compute the scalar multiple n*P in End(E[ell]) using double and Add
+func ScalarMul(pe *Endo, n *big.Int, A *big.Int, f Poly) (*Endo, error) {
 	var err error
 
 	if n == nil {
 		return nil, nil
 	}
 
-	re := newEnd(pe.qr, pe.x, pe.y)
+	re := NewEnd(pe.qr, pe.x, pe.y)
 	for i, b := range n.Bytes() {
 		j := 0
 		if i == 0 {
@@ -153,11 +153,11 @@ func smul(pe *endo, n *big.Int, A *big.Int, f Poly) (*endo, error) {
 			b <<= 1
 		}
 		for bitNum := j; bitNum < 8; bitNum++ {
-			if re, err = dbl(re, A, f); err != nil {
+			if re, err = Double(re, A, f); err != nil {
 				return nil, err
 			}
 			if b&0x80 == 0x80 {
-				if re, err = add(re, pe, A, f); err != nil {
+				if re, err = Add(re, pe, A, f); err != nil {
 					return nil, err
 				}
 			}
@@ -168,25 +168,25 @@ func smul(pe *endo, n *big.Int, A *big.Int, f Poly) (*endo, error) {
 	return re, nil
 }
 
-func square(pe *endo, f Poly) *endo {
+func Square(pe *Endo, f Poly) *Endo {
 	q2 := new(big.Int).Exp(pe.qr.q, big.NewInt(2), nil)
 
 	xq2 := make(chan Poly)
 	go func() {
 		defer close(xq2)
-		xq2 <- exp(pe.qr, NewPolyFromInt(0, 1), q2)
+		xq2 <- Exp(pe.qr, NewPolyFromInt(0, 1), q2)
 	}()
 
 	yq2 := make(chan Poly)
 	go func() {
 		defer close(yq2)
-		yq2 <- exp(pe.qr, f, new(big.Int).Div(q2, big.NewInt(2)))
+		yq2 <- Exp(pe.qr, f, new(big.Int).Div(q2, big.NewInt(2)))
 	}()
 
-	return newEnd(pe.qr, <-xq2, <-yq2)
+	return NewEnd(pe.qr, <-xq2, <-yq2)
 }
 
-func exp(qr *qring, p Poly, e *big.Int) Poly {
+func Exp(qr *Qring, p Poly, e *big.Int) Poly {
 	qpoly := qr.poly
 	r := NewPolyFromInt(1)
 
@@ -203,16 +203,16 @@ func exp(qr *qring, p Poly, e *big.Int) Poly {
 	return r
 }
 
-func irreducible(qr *qring) bool {
+func Irreducible(qr *Qring) bool {
 	h, q := qr.h, qr.q
 	x := NewPolyFromInt(0, 1)
-	xq := exp(qr, x, q).Sub(x, q)
+	xq := Exp(qr, x, q).Sub(x, q)
 
 	return xq.GCD(h, q).Cmp(NewPolyFromInt(1)) == 0
 }
 
-// traceMod computes the trace of Frobenius of E modulo ell
-func traceMod(c *Curve, ell *big.Int) <-chan interface{} {
+// TraceMod computes the Trace of Frobenius of E modulo ell
+func TraceMod(c *Curve, ell *big.Int) <-chan interface{} {
 	ch := make(chan interface{})
 
 	go func() {
@@ -220,63 +220,63 @@ func traceMod(c *Curve, ell *big.Int) <-chan interface{} {
 
 		A, q := c.A, c.P
 		f := c.poly()
-		qr := &qring{c.divpoly(ell.Int64()).Monic(q), q}
+		qr := &Qring{c.DivPoly(ell.Int64()).Monic(q), q}
 
 		if ell.Cmp(big.NewInt(2)) == 0 {
-			if irreducible(&qring{f, q}) {
-				ch <- &trace{big.NewInt(1), nil}
+			if Irreducible(&Qring{f, q}) {
+				ch <- &Trace{big.NewInt(1), nil}
 				return
 			}
-			ch <- &trace{big.NewInt(0), nil}
+			ch <- &Trace{big.NewInt(0), nil}
 			return
 		}
 
 		var err error
 		for {
 			switch err {
-			case zeroDivisionError:
-				qr.h = qr.h.GCD(divPolyFactor, q)
-				log.Printf("found %d-divpoly factor of degree %d\n",
+			case ErrZeroDivision:
+				qr.h = qr.h.GCD(DivPolyFactor, q)
+				log.Printf("found %d-DivPoly factor of degree %d\n",
 					ell, qr.h.Deg())
-			case noCharacterPoly:
-				ch <- &trace{nil, err}
+			case ErrNoCharacterPoly:
+				ch <- &Trace{nil, err}
 				return
 			}
 
-			xq := exp(qr, NewPolyFromInt(0, 1), q)
-			yq := exp(qr, f, new(big.Int).Div(q, big.NewInt(2)))
-			pi := newEnd(qr, xq, yq)
-			pi2 := square(pi, f)
+			xq := Exp(qr, NewPolyFromInt(0, 1), q)
+			yq := Exp(qr, f, new(big.Int).Div(q, big.NewInt(2)))
+			pi := NewEnd(qr, xq, yq)
+			pi2 := Square(pi, f)
 
-			var Q, S *endo
-			id := newEnd(qr, NewPolyFromInt(0, 1), NewPolyFromInt(1))
-			if Q, err = smul(id, new(big.Int).Mod(q, ell), A, f); err != nil {
+			var Q, S *Endo
+			id := NewEnd(qr, NewPolyFromInt(0, 1), NewPolyFromInt(1))
+			if Q, err = ScalarMul(id, new(big.Int).Mod(q, ell), A, f); err != nil {
 				continue
 			}
-			if S, err = add(pi2, Q, A, f); err != nil {
+			if S, err = Add(pi2, Q, A, f); err != nil {
 				continue
 			}
 
 			if S == nil {
-				ch <- &trace{big.NewInt(0), nil}
+				ch <- &Trace{big.NewInt(0), nil}
 				return
 			}
-			if eq(S, pi) {
-				ch <- &trace{big.NewInt(1), nil}
+			if Eq(S, pi) {
+				ch <- &Trace{big.NewInt(1), nil}
 				return
 			}
-			if eq(neg(S), pi) {
-				ch <- &trace{big.NewInt(-1), nil}
+			if Eq(Neg(S), pi) {
+				ch <- &Trace{big.NewInt(-1), nil}
 				return
 			}
 
-			P := newEnd(qr, pi.x, pi.y)
+			P := NewEnd(qr, pi.x, pi.y)
 			for t := int64(2); t < ell.Int64()-1; t++ {
-				if P, err = add(P, pi, A, f); err != nil {
+				if P, err = Add(P, pi, A, f); err != nil {
 					break
 				}
-				if eq(P, S) {
-					ch <- &trace{big.NewInt(t), nil}
+				if Eq(P, S) {
+					ch <- &Trace{big.NewInt(t), nil}
 					return
 				}
 			}
@@ -286,7 +286,7 @@ func traceMod(c *Curve, ell *big.Int) <-chan interface{} {
 	return ch
 }
 
-// Schoof computes the trace of Frobenius of E(Elliptic curve)
+// Schoof computes the Trace of Frobenius of E(Elliptic curve)
 func (c *Curve) Schoof() (*big.Int, error) {
 	q := c.P
 	l, M := big.NewInt(2), big.NewInt(1)
@@ -306,28 +306,28 @@ func (c *Curve) Schoof() (*big.Int, error) {
 			A: c.A,
 			B: c.B,
 		}
-		worker = append(worker, traceMod(ec, l))
+		worker = append(worker, TraceMod(ec, l))
 		M.Mul(M, l)
-		l = nextPrime(l)
+		l = NextPrime(l)
 	}
 
 	var tr []*big.Int
 	i := 0
-	for s := range toTrace(done, fanIn(done, worker...)) {
+	for s := range ToTrace(done, FanIn(done, worker...)) {
 		if s.err != nil {
 			return nil, s.err
 		}
-		log.Println("trace", s.tr, "mod", ell[i])
+		log.Println("Trace", s.tr, "mod", ell[i])
 		tr = append(tr, s.tr)
 		i++
 	}
 
-	t := crt(tr, ell) // chinese remainder theorem
+	t := CRT(tr, ell) // chinese remainder theorem
 	if t.Cmp(new(big.Int).Div(M, big.NewInt(2))) >= 0 {
 		t.Sub(t, M)
 	}
 
-	log.Printf("trace of Frobenius of E = %d\n", t)
+	log.Printf("Trace of Frobenius of E = %d\n", t)
 
 	t.Neg(t)
 	t.Add(t, q).Add(t, big.NewInt(1))

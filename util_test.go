@@ -28,7 +28,7 @@ func TestNextPrime(t *testing.T) {
 	}
 
 	for _, c := range cases {
-		r := nextPrime(c.a)
+		r := NextPrime(c.a)
 		if r.Cmp(c.want) != 0 {
 			t.Errorf("got: %v, want: %v", r, c.want)
 		}

@@ -39,7 +39,7 @@ func TestDivisionPolynomial(t *testing.T) {
 	}
 
 	for i := 0; i < len(want); i++ {
-		dp := c.divpoly(int64(i))
+		dp := c.DivPoly(int64(i))
 		if dp.String() != want[i] {
 			t.Errorf("fail %dth division poly\n%s", i, dp)
 		}
