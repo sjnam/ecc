@@ -66,6 +66,7 @@ func sampleCurves() map[string]*Curve {
 
 func testAllCurves(t *testing.T, f func(*testing.T, *Curve)) {
 	for name, c := range sampleCurves() {
+		c := c
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			f(t, c)
