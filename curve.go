@@ -1,6 +1,7 @@
 package ecc
 
 import (
+	"crypto/rand"
 	"io"
 	"math/big"
 )
@@ -12,10 +13,6 @@ import (
 // calculation can be performed within the transform (as in ScalarMult and
 // ScalarBaseMult). But even for Add and Double, it's faster to apply and
 // reverse the transform than to operate in affine coordinates.
-
-import (
-	"crypto/rand"
-)
 
 // Curve represents a short-form Weierstrass curve. (y² = x³ + ax + b)
 // The behavior of Add, Double, and ScalarMult when the input is not a Point on
