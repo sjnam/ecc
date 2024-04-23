@@ -20,24 +20,19 @@ func (c *Curve) DivPoly(n int64) Poly {
 		return d
 	}
 
-	q := c.P
-	f := c.poly()
-
-	if n == 0 {
-		return cache(c, n, NewPolyFromInt(0))
-	}
-	if n == 1 {
-		return cache(c, n, NewPolyFromInt(1))
-	}
-	if n == 2 {
-		return cache(c, n, f.Mul(NewPolyFromInt(4), q))
-	}
-
+	q, f := c.P, c.poly()
 	a, b := int(c.A.Int64()), int(c.B.Int64())
-	if n == 3 {
+
+	switch n {
+	case 0:
+		return cache(c, n, NewPolyFromInt(0))
+	case 1:
+		return cache(c, n, NewPolyFromInt(1))
+	case 2:
+		return cache(c, n, f.Mul(NewPolyFromInt(4), q))
+	case 3:
 		return cache(c, n, NewPolyFromInt(-a*a, 12*b, 6*a, 0, 3).sanitize(c.P))
-	}
-	if n == 4 {
+	case 4:
 		return cache(c, n,
 			NewPolyFromInt(-64*b*b-8*a*a*a, -32*a*b, -40*a*a, 160*b, 40*a, 0, 8).
 				Mul(f, q))
