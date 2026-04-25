@@ -35,13 +35,16 @@ type Trace struct {
 	err error
 }
 
-var (
-	// DivPolyFactor global variable for factor of the division poly when ErrZeroDivision's
-	DivPolyFactor Poly
+// ZeroDivError carries a proper factor of the division polynomial that was
+// discovered during an endomorphism inversion. TraceMod narrows qr.h via GCD
+// with this factor and retries.
+type ZeroDivError struct {
+	Factor Poly
+}
 
-	ErrZeroDivision    = errors.New("divided by zero")
-	ErrNoCharacterPoly = errors.New("frobenius satisfies no character poly")
-)
+func (e *ZeroDivError) Error() string { return "divided by zero" }
+
+var ErrNoCharacterPoly = errors.New("frobenius satisfies no character poly")
 
 func (qr *Qring) poly(p Poly) Poly {
 	_, r := p.Div(qr.h, qr.q)
@@ -86,8 +89,7 @@ func Add(pe, qe *Endo, A *big.Int, f Poly) (*Endo, error) {
 	a := a2.Sub(a1, q)
 	inv := a.ModInverse(h, q)
 	if inv == nil {
-		DivPolyFactor = a
-		return nil, ErrZeroDivision
+		return nil, &ZeroDivError{Factor: a}
 	}
 
 	m := qpoly(b.Mul(inv, q))
@@ -115,8 +117,7 @@ func Double(pe *Endo, A *big.Int, f Poly) (*Endo, error) {
 	de := qpoly(b1.Mul(f, q)).MulInt(2, q)
 	inv := de.ModInverse(h, q)
 	if inv == nil {
-		DivPolyFactor = de
-		return nil, ErrZeroDivision
+		return nil, &ZeroDivError{Factor: de}
 	}
 
 	m = qpoly(m.Mul(inv, q))
@@ -139,7 +140,7 @@ func Neg(pe *Endo) *Endo {
 func ScalarMul(pe *Endo, n *big.Int, A *big.Int, f Poly) (*Endo, error) {
 	var err error
 
-	if n == nil {
+	if n == nil || n.Sign() == 0 {
 		return nil, nil
 	}
 
@@ -187,14 +188,34 @@ func Square(pe *Endo, f Poly) *Endo {
 }
 
 func Exp(qr *Qring, p Poly, e *big.Int) Poly {
-	qpoly := qr.poly
-	r := NewPolyFromInt(1)
+	if e.Sign() == 0 {
+		return NewPolyFromInt(1)
+	}
 
-	for _, b := range e.Bytes() {
-		for bitNum := 0; bitNum < 8; bitNum++ {
-			r = qpoly(r.Mul(r, qr.q))
+	qpoly := qr.poly
+	bytes := e.Bytes()
+	r := NewPolyFromInt(1)
+	first := true
+
+	for i, b := range bytes {
+		start := 0
+		if i == 0 {
+			for b&0x80 == 0 {
+				b <<= 1
+				start++
+			}
+		}
+		for bitNum := start; bitNum < 8; bitNum++ {
+			if !first {
+				r = qpoly(r.Mul(r, qr.q))
+			}
 			if b&0x80 == 0x80 {
-				r = qpoly(r.Mul(p, qr.q))
+				if first {
+					r = qpoly(p.Clone(0))
+					first = false
+				} else {
+					r = qpoly(r.Mul(p, qr.q))
+				}
 			}
 			b <<= 1
 		}
@@ -231,26 +252,30 @@ func TraceMod(c *Curve, ell *big.Int) <-chan interface{} {
 			return
 		}
 
+		qModEll := new(big.Int).Mod(q, ell)
+		qHalf := new(big.Int).Div(q, big.NewInt(2))
+
 		var err error
 		for {
-			switch err {
-			case ErrZeroDivision:
-				qr.h = qr.h.GCD(DivPolyFactor, q)
+			var zd *ZeroDivError
+			switch {
+			case errors.As(err, &zd):
+				qr.h = qr.h.GCD(zd.Factor, q)
 				log.Printf("found %d-DivPoly factor of degree %d\n",
 					ell, qr.h.Deg())
-			case ErrNoCharacterPoly:
+			case errors.Is(err, ErrNoCharacterPoly):
 				ch <- &Trace{nil, err}
 				return
 			}
 
 			xq := Exp(qr, NewPolyFromInt(0, 1), q)
-			yq := Exp(qr, f, new(big.Int).Div(q, big.NewInt(2)))
+			yq := Exp(qr, f, qHalf)
 			pi := NewEnd(qr, xq, yq)
 			pi2 := Square(pi, f)
 
 			var Q, S *Endo
 			id := NewEnd(qr, NewPolyFromInt(0, 1), NewPolyFromInt(1))
-			if Q, err = ScalarMul(id, new(big.Int).Mod(q, ell), A, f); err != nil {
+			if Q, err = ScalarMul(id, qModEll, A, f); err != nil {
 				continue
 			}
 			if S, err = Add(pi2, Q, A, f); err != nil {

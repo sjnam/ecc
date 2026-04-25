@@ -80,7 +80,9 @@ func (p Poly) Clone(adjust int) Poly {
 	for i := 0; i < adjust; i++ {
 		q[i] = new(big.Int)
 	}
-	copy(q[adjust:], p)
+	for i := 0; i < len(p); i++ {
+		q[adjust+i] = new(big.Int).Set(p[i])
+	}
 
 	return q
 }
@@ -160,18 +162,22 @@ func (p Poly) Cmp(q Poly) int {
 // Add adds two polynomials
 // modulo m can be nil
 func (p Poly) Add(q Poly, m *big.Int) Poly {
-	if p.Cmp(q) < 0 {
-		return q.Add(p, m)
+	if len(p) < len(q) {
+		p, q = q, p
 	}
 
-	r := p.Clone(0)
-
-	for i := 0; i < len(q); i++ {
+	r := make(Poly, len(p))
+	ln := len(q)
+	for i := 0; i < ln; i++ {
 		r[i] = new(big.Int).Add(p[i], q[i])
 	}
-
-	for i := 0; i < len(q); i++ {
-		r[i].Mod(r[i], m)
+	for i := ln; i < len(p); i++ {
+		r[i] = new(big.Int).Set(p[i])
+	}
+	if m != nil {
+		for i := 0; i < len(r); i++ {
+			r[i].Mod(r[i], m)
+		}
 	}
 
 	return r.trim()
@@ -190,10 +196,9 @@ func (p Poly) Neg() Poly {
 // Sub subtracts P from Q
 // Since we already have Add(), Sub() does Add(P, -Q)
 func (p Poly) Sub(q Poly, m *big.Int) Poly {
-	swap := false
+	swap := len(p) < len(q)
 	s, t := p, q
-	if p.Cmp(q) < 0 {
-		swap = true
+	if swap {
 		s, t = t, s
 	}
 
@@ -204,7 +209,9 @@ func (p Poly) Sub(q Poly, m *big.Int) Poly {
 		for i := 0; i < ln; i++ {
 			r[i] = new(big.Int).Sub(s[i], t[i])
 		}
-		copy(r[ln:], s[ln:])
+		for i := ln; i < len(s); i++ {
+			r[i] = new(big.Int).Set(s[i])
+		}
 	} else {
 		for i := 0; i < ln; i++ {
 			r[i] = new(big.Int).Sub(t[i], s[i])
@@ -214,8 +221,10 @@ func (p Poly) Sub(q Poly, m *big.Int) Poly {
 		}
 	}
 
-	for i := 0; i < len(s); i++ {
-		r[i].Mod(r[i], m)
+	if m != nil {
+		for i := 0; i < len(r); i++ {
+			r[i].Mod(r[i], m)
+		}
 	}
 
 	return r.trim()
@@ -223,14 +232,26 @@ func (p Poly) Sub(q Poly, m *big.Int) Poly {
 
 // Mul returns P * Q
 func (p Poly) Mul(q Poly, m *big.Int) Poly {
+	if len(p) == 0 || len(q) == 0 {
+		return NewPolyFromInt(0)
+	}
+
 	r := make(Poly, len(p)+len(q)-1)
 	for i := 0; i < len(r); i++ {
 		r[i] = new(big.Int)
 	}
 
+	tmp := new(big.Int)
 	for i := 0; i < len(p); i++ {
+		if p[i].Sign() == 0 {
+			continue
+		}
 		for j := 0; j < len(q); j++ {
-			r[i+j].Add(r[i+j], new(big.Int).Mul(p[i], q[j]))
+			if q[j].Sign() == 0 {
+				continue
+			}
+			tmp.Mul(p[i], q[j])
+			r[i+j].Add(r[i+j], tmp)
 		}
 	}
 
@@ -243,13 +264,33 @@ func (p Poly) MulInt(a int, m *big.Int) Poly {
 
 // Exp returns P^e mod M
 func (p Poly) Exp(e *big.Int, m *big.Int) Poly {
-	r := NewPolyFromInt(1)
+	if e.Sign() == 0 {
+		return NewPolyFromInt(1)
+	}
 
-	for _, b := range e.Bytes() {
-		for bitNum := 0; bitNum < 8; bitNum++ {
-			r = r.Mul(r, m)
+	bytes := e.Bytes()
+	r := NewPolyFromInt(1)
+	first := true
+
+	for i, b := range bytes {
+		start := 0
+		if i == 0 {
+			for b&0x80 == 0 {
+				b <<= 1
+				start++
+			}
+		}
+		for bitNum := start; bitNum < 8; bitNum++ {
+			if !first {
+				r = r.Mul(r, m)
+			}
 			if b&0x80 == 0x80 {
-				r = r.Mul(p, m)
+				if first {
+					r = p.Clone(0)
+					first = false
+				} else {
+					r = r.Mul(p, m)
+				}
 			}
 			b <<= 1
 		}
@@ -270,30 +311,31 @@ func (p Poly) Div(q Poly, m *big.Int) (Poly, Poly) {
 	for i := 0; i < len(quo); i++ {
 		quo[i] = new(big.Int)
 	}
-	rem := p
+	rem := p.Clone(0)
 
 	qd := q.Deg()
+	qInv := new(big.Int).ModInverse(q[qd], m)
+	tmp := new(big.Int)
+
 	for {
-		td := len(rem) - 1 // rem.Deg()
+		td := len(rem) - 1
 		rd := td - qd
 		if rd < 0 || rem.isZero() {
 			break
 		}
 
 		r := quo[rd]
-		r.ModInverse(q[qd], m)
-		r.Mul(r, rem[td]).Mod(r, m)
+		r.Mul(rem[td], qInv).Mod(r, m)
 
-		u := make(Poly, len(q)+rd)
-		for i := 0; i < rd; i++ {
-			u[i] = new(big.Int)
-		}
-		x := u[rd:]
 		for i := 0; i < len(q); i++ {
-			x[i] = new(big.Int).Mul(q[i], r)
+			if q[i].Sign() == 0 {
+				continue
+			}
+			tmp.Mul(q[i], r)
+			rem[rd+i].Sub(rem[rd+i], tmp)
+			rem[rd+i].Mod(rem[rd+i], m)
 		}
-
-		rem = rem.Sub(u, m)
+		rem = rem.trim()
 	}
 
 	return quo, rem
@@ -321,8 +363,12 @@ func (p Poly) Deriv(m *big.Int) Poly {
 }
 
 func (p Poly) GCD(q Poly, m *big.Int) Poly {
-	g, _, _ := p.ExtendedGCD(q, m)
-	return g
+	oldR, r := p, q
+	for !r.isZero() {
+		_, rem := oldR.Div(r, m)
+		oldR, r = r, rem
+	}
+	return oldR.Monic(m)
 }
 
 func (p Poly) ExtendedGCD(q Poly, m *big.Int) (Poly, Poly, Poly) {
