@@ -247,3 +247,16 @@ func BenchmarkScalarMult(b *testing.B) {
 		}
 	})
 }
+
+func BenchmarkScalarBaseMult(b *testing.B) {
+	benchmarkAllCurves(b, func(b *testing.B, curve *Curve) {
+		priv, _, _, _ := curve.GenerateKey(rand.Reader)
+		// Warm the comb table so the benchmark measures steady-state cost.
+		curve.ScalarBaseMult(priv)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			curve.ScalarBaseMult(priv)
+		}
+	})
+}

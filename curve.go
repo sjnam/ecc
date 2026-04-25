@@ -31,7 +31,19 @@ type Curve struct {
 	BitSize int            // the size of the underlying field
 	Name    string         // the canonical name of the curve
 	dpCache map[int64]Poly // division polynomial
+	bmt     *baseMultTable // fixed-base comb table for ScalarBaseMult
 }
+
+// baseMultTable holds precomputed affine multiples of G arranged into
+// fixed-width windows, used by ScalarBaseMult. rows[i][d-1] equals
+// d * 2^(w*i) * G for d in 1..(2^w - 1).
+type baseMultTable struct {
+	w    int
+	nWin int
+	rows [][]basePoint
+}
+
+type basePoint struct{ x, y *big.Int }
 
 // evaluatePolynomial returns y² = x³ + ax + b.
 func (c *Curve) evaluatePolynomial(x *big.Int) *big.Int {
@@ -182,6 +194,95 @@ func (c *Curve) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (x3, y3, z3 *big.In
 	return
 }
 
+// addJacobianMixed adds (x1,y1,z1) and (x2,y2,1). The caller must guarantee
+// that the second operand has z=1 (i.e., is in affine form). Saves the
+// z2*z2, y1*z2*z2², and z2-related multiplications versus addJacobian.
+func (c *Curve) addJacobianMixed(x1, y1, z1, x2, y2 *big.Int) (x3, y3, z3 *big.Int) {
+	// EFD: g1p/auto-shortw-jacobian-3.html#addition-madd-2007-bl
+	x3, y3, z3 = new(big.Int), new(big.Int), new(big.Int)
+	if z1.Sign() == 0 {
+		x3.Set(x2)
+		y3.Set(y2)
+		z3.SetInt64(1)
+		return
+	}
+	P := c.P
+
+	z1z1 := new(big.Int).Mul(z1, z1)
+	z1z1.Mod(z1z1, P)
+
+	u2 := new(big.Int).Mul(x2, z1z1)
+	u2.Mod(u2, P)
+
+	s2 := new(big.Int).Mul(y2, z1)
+	s2.Mul(s2, z1z1)
+	s2.Mod(s2, P)
+
+	h := new(big.Int).Sub(u2, x1)
+	if h.Sign() == -1 {
+		h.Add(h, P)
+	}
+	hh := new(big.Int).Mul(h, h)
+	hh.Mod(hh, P)
+
+	i := new(big.Int).Lsh(hh, 2)
+	j := new(big.Int).Mul(h, i)
+	j.Mod(j, P)
+
+	r := new(big.Int).Sub(s2, y1)
+	if r.Sign() == -1 {
+		r.Add(r, P)
+	}
+	if h.Sign() == 0 && r.Sign() == 0 {
+		return c.doubleJacobian(x1, y1, z1)
+	}
+	r.Lsh(r, 1)
+
+	v := new(big.Int).Mul(x1, i)
+	v.Mod(v, P)
+
+	x3.Mul(r, r)
+	x3.Sub(x3, j)
+	x3.Sub(x3, v)
+	x3.Sub(x3, v)
+	x3.Mod(x3, P)
+
+	vmx := new(big.Int).Sub(v, x3)
+	y3.Mul(r, vmx)
+	twoY1J := new(big.Int).Mul(y1, j)
+	twoY1J.Lsh(twoY1J, 1)
+	y3.Sub(y3, twoY1J)
+	y3.Mod(y3, P)
+
+	z3.Add(z1, h)
+	z3.Mul(z3, z3)
+	z3.Sub(z3, z1z1)
+	if z3.Sign() == -1 {
+		z3.Add(z3, P)
+	}
+	z3.Sub(z3, hh)
+	if z3.Sign() == -1 {
+		z3.Add(z3, P)
+	}
+	z3.Mod(z3, P)
+
+	return
+}
+
+// doubleAffine and addAffine are internal helpers that skip
+// panicIfNotOnCurve. They are used by precomputation paths where inputs
+// are derived from c.Gx, c.Gy and are therefore on the curve by construction.
+func (c *Curve) doubleAffine(x, y *big.Int) (*big.Int, *big.Int) {
+	z := zForAffine(x, y)
+	return c.affineFromJacobian(c.doubleJacobian(x, y, z))
+}
+
+func (c *Curve) addAffine(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
+	z1 := zForAffine(x1, y1)
+	z2 := zForAffine(x2, y2)
+	return c.affineFromJacobian(c.addJacobian(x1, y1, z1, x2, y2, z2))
+}
+
 // Double returns 2*(x,y)
 func (c *Curve) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
 	panicIfNotOnCurve(c, x1, y1)
@@ -257,27 +358,177 @@ func (c *Curve) doubleJacobian(x, y, z *big.Int) (x3, y3, z3 *big.Int) {
 	return
 }
 
-// ScalarMult returns k*(Bx,By).
+// ScalarMult returns k*(Bx,By). The scalar k is treated as its absolute value
+// (matching the legacy behavior of iterating k.Bytes()).
 func (c *Curve) ScalarMult(Bx, By, k *big.Int) (*big.Int, *big.Int) {
 	panicIfNotOnCurve(c, Bx, By)
 
-	Bz := new(big.Int).SetInt64(1)
-	x, y, z := new(big.Int), new(big.Int), new(big.Int)
-	for _, b := range k.Bytes() {
-		for bitNum := 0; bitNum < 8; bitNum++ {
-			x, y, z = c.doubleJacobian(x, y, z)
-			if b&0x80 == 0x80 {
-				x, y, z = c.addJacobian(Bx, By, Bz, x, y, z)
-			}
-			b <<= 1
+	if k.Sign() == 0 || (Bx.Sign() == 0 && By.Sign() == 0) {
+		return new(big.Int), new(big.Int)
+	}
+
+	const w = 5
+	naf := computeWNAF(k, w)
+	if len(naf) == 0 {
+		return new(big.Int), new(big.Int)
+	}
+
+	// Precompute odd Jacobian multiples of P: pre[d] = (2d+1)*P for d in [0, nPre).
+	nPre := 1 << (w - 2)
+	preX := make([]*big.Int, nPre)
+	preY := make([]*big.Int, nPre)
+	preZ := make([]*big.Int, nPre)
+	preX[0] = new(big.Int).Set(Bx)
+	preY[0] = new(big.Int).Set(By)
+	preZ[0] = big.NewInt(1)
+	if nPre > 1 {
+		twoX, twoY, twoZ := c.doubleJacobian(Bx, By, preZ[0])
+		for i := 1; i < nPre; i++ {
+			preX[i], preY[i], preZ[i] = c.addJacobian(
+				preX[i-1], preY[i-1], preZ[i-1], twoX, twoY, twoZ)
 		}
 	}
+
+	// Iterate the wNAF digits from MSB. The first non-zero digit short-circuits
+	// the leading run of doublings on (0,0,0).
+	x, y, z := new(big.Int), new(big.Int), new(big.Int)
+	started := false
+	for i := len(naf) - 1; i >= 0; i-- {
+		if started {
+			x, y, z = c.doubleJacobian(x, y, z)
+		}
+		d := naf[i]
+		if d == 0 {
+			continue
+		}
+		idx := int(d) / 2
+		if d < 0 {
+			idx = int(-d) / 2
+		}
+		if !started {
+			x.Set(preX[idx])
+			y.Set(preY[idx])
+			z.Set(preZ[idx])
+			if d < 0 {
+				y.Sub(c.P, y)
+			}
+			started = true
+			continue
+		}
+		if d > 0 {
+			x, y, z = c.addJacobian(x, y, z, preX[idx], preY[idx], preZ[idx])
+		} else {
+			ny := new(big.Int).Sub(c.P, preY[idx])
+			x, y, z = c.addJacobian(x, y, z, preX[idx], ny, preZ[idx])
+		}
+	}
+
 	return c.affineFromJacobian(x, y, z)
 }
 
+// computeWNAF returns the width-w non-adjacent form of |k|, LSB-first.
+// Each digit is 0 or an odd integer in [-(2^(w-1)-1), 2^(w-1)-1].
+func computeWNAF(k *big.Int, w int) []int8 {
+	if k.Sign() == 0 {
+		return nil
+	}
+	twoW := int64(1) << w
+	halfW := int64(1) << (w - 1)
+	kt := new(big.Int).Abs(k)
+	naf := make([]int8, 0, kt.BitLen()+1)
+	for kt.Sign() > 0 {
+		var d int8
+		if kt.Bit(0) == 1 {
+			var v int64
+			for i := 0; i < w; i++ {
+				v |= int64(kt.Bit(i)) << uint(i)
+			}
+			if v >= halfW {
+				v -= twoW
+			}
+			d = int8(v)
+			if v >= 0 {
+				kt.Sub(kt, big.NewInt(v))
+			} else {
+				kt.Add(kt, big.NewInt(-v))
+			}
+		}
+		naf = append(naf, d)
+		kt.Rsh(kt, 1)
+	}
+	return naf
+}
+
 // ScalarBaseMult returns k*G, where G is the base Point of the group.
+// Uses a lazily-built fixed-base comb table when c.N and c.BitSize are set;
+// falls back to ScalarMult otherwise.
 func (c *Curve) ScalarBaseMult(k *big.Int) (*big.Int, *big.Int) {
-	return c.ScalarMult(c.Gx, c.Gy, k)
+	if c.N == nil || c.N.Sign() == 0 || c.BitSize <= 0 {
+		return c.ScalarMult(c.Gx, c.Gy, k)
+	}
+
+	kk := k
+	if kk.Sign() < 0 || kk.Cmp(c.N) >= 0 {
+		kk = new(big.Int).Mod(kk, c.N)
+	}
+	if kk.Sign() == 0 {
+		return new(big.Int), new(big.Int)
+	}
+
+	if c.bmt == nil {
+		c.bmt = c.precomputeBaseMultTable(4)
+	}
+	bmt := c.bmt
+	w := bmt.w
+
+	x, y, z := new(big.Int), new(big.Int), new(big.Int)
+	for i := 0; i < bmt.nWin; i++ {
+		var v int
+		for j := 0; j < w; j++ {
+			v |= int(kk.Bit(w*i+j)) << j
+		}
+		if v == 0 {
+			continue
+		}
+		p := bmt.rows[i][v-1]
+		// Defensive: skip if a precomputed multiple lands on infinity (only
+		// possible for pathologically small N relative to BitSize).
+		if p.x.Sign() == 0 && p.y.Sign() == 0 {
+			continue
+		}
+		x, y, z = c.addJacobianMixed(x, y, z, p.x, p.y)
+	}
+
+	return c.affineFromJacobian(x, y, z)
+}
+
+// precomputeBaseMultTable builds a window-w fixed-base comb table for c.Gx,c.Gy.
+// rows[i][d-1] = d * 2^(w*i) * G in affine form, for d in 1..(2^w-1).
+func (c *Curve) precomputeBaseMultTable(w int) *baseMultTable {
+	nEntries := (1 << w) - 1
+	nWin := (c.BitSize + w - 1) / w
+	rows := make([][]basePoint, nWin)
+
+	bx, by := new(big.Int).Set(c.Gx), new(big.Int).Set(c.Gy)
+	for i := 0; i < nWin; i++ {
+		rows[i] = make([]basePoint, nEntries)
+		rows[i][0] = basePoint{new(big.Int).Set(bx), new(big.Int).Set(by)}
+		for d := 2; d <= nEntries; d++ {
+			var nx, ny *big.Int
+			if d == 2 {
+				nx, ny = c.doubleAffine(rows[i][0].x, rows[i][0].y)
+			} else {
+				nx, ny = c.addAffine(rows[i][d-2].x, rows[i][d-2].y, bx, by)
+			}
+			rows[i][d-1] = basePoint{nx, ny}
+		}
+		if i < nWin-1 {
+			for j := 0; j < w; j++ {
+				bx, by = c.doubleAffine(bx, by)
+			}
+		}
+	}
+	return &baseMultTable{w: w, nWin: nWin, rows: rows}
 }
 
 // CombinedMult calculates P=mG+nQ, where G is the generator and Q=(x,y,z).
